@@ -35,4 +35,6 @@ kubectl get service azure-vote-front --watch
 
 # test to make sure you can access the html
 CURL http://20.81.7.29
+
+# todo: start monitor this cluster using NR1
 ```
