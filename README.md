@@ -36,5 +36,15 @@ kubectl get service azure-vote-front --watch
 # test to make sure you can access the html
 CURL http://20.81.7.29
 
-# todo: start monitor this cluster using NR1
+# install NR1 (go to NR1, add more data, search for Kubernetes and follow the instructions and download the manifest file
+kubectl apply -f https://download.newrelic.com/install/kubernetes/pixie/latest/px.dev_viziers.yaml
+kubectl apply -f https://download.newrelic.com/install/kubernetes/pixie/latest/olm_crd.yaml
+kubectl create namespace newrelic
+kubectl apply -f <PATH_TO_DOWNLOADED_FILE>
+
+# install k6 load test from https://k6.io and run quick load test
+# NOTE: update the ipaddress of the host in the simple.js file first
+k6 run loadtests/simple.js
+
+# make sure you can see traffic coming into the cluster
 ```
