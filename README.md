@@ -49,6 +49,9 @@ k6 run loadtests/simple.js
 # make sure you can see traffic coming into the cluster
 ```
 
+You should see something like this
+![](2021-12-23-09-29-24.png)
+
 ## Setup pixie
 
 Issues: Pixie is not installed eventhough I selected during the setup process
