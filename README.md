@@ -54,11 +54,12 @@ You should see something like this
 
 ## Setup pixie
 
-Issues: Pixie is not installed eventhough I selected during the setup process
-![](2021-12-22-18-07-10.png)
+Pixe automatic setup via Safari is not working due to this error
+![](2021-12-23-09-44-40.png)
 
 Port 8085 is open
 ![](2021-12-23-09-27-15.png)
 
-Tried login manually still doesn't work
-![](2021-12-23-09-25-21.png)
+This works fine for Chrome
+
+Manaul setup also works (px auth login --manual)
