@@ -22,13 +22,23 @@ export const options = {
 
 export default function () {
   // our HTTP request, note that we are saving the response to res, which can be accessed later
-
-  const res = http.get('http://20.81.7.29');
+  const BASE_URL = `http://${__ENV.PUBLIC_IP}/`;
+  const res = http.get(BASE_URL);
 
   sleep(1);
 
   const checkRes = check(res, {
     'status is 200': (r) => r.status === 200,
-    'response body': (r) => r.body.indexOf('Feel free to browse') !== -1,
+  });
+
+  sleep(1);
+
+  const options = ['Cats', 'Dogs'];
+  const rnd = Math.round(Math.random());
+
+  const post = http.post(BASE_URL, { vote: options[rnd] });
+
+  const checkPost = check(post, {
+    'status is 200': (r) => r.status === 200,
   });
 }

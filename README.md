@@ -1,65 +1,53 @@
 # New Relic Demo environment setup on Azure
 
 ## Setup a simple 2 Tier application (UI + Redis) on AKS
+
 ```bash
 # create resource group
-az group create --name newrelicdemotron --location eastus
+az group create --name nrdemo --location eastus
 
-# check to make sure that Microsoft.OperationsManagement is enabled
-az provider show -n Microsoft.OperationsManagement -o table
-az provider show -n Microsoft.OperationalInsights -o table
-
-# enable if not already enabled
-az provider register --namespace Microsoft.OperationsManagement
-az provider register --namespace Microsoft.OperationalInsights
-
-# create the K8s Cluster
-az aks create --resource-group newrelicdemotron --name myAKSCluster --node-count 1 --enable-addons monitoring,http_application_routing --generate-ssh-keys --enable-rbac
-
-# check and increase the number of nodes on the cluster
-az aks show --resource-group newrelicdemotron --name myAKSCluster --query agentPoolProfiles
-az aks nodepool update --min-count 1 --max-count 5 -g newrelicdemotron -n nodepool1 --cluster-name myAKSCluster --enable-cluster-autoscaler
+# create the K8s Cluster with 2 nodes (do not enable monitoring)
+az aks create --resource-group nrdemo --name mydemocluster --node-count 2 --enable-addons http_application_routing --generate-ssh-keys --enable-rbac
 
 # connect to the cluster via kubectl
 az aks install-cli
-az aks get-credentials --resource-group newrelicdemotron --name myAKSCluster
+az aks get-credentials --resource-group nrdemo --name mydemocluster
 
 # confirm can connect to the cluster
 kubectl get nodes
 
 # create the application
-kubectl apply -f apps/azure-vote.yaml
+kubectl apply -f apps/azure-vote.yaml --namespace=azurevote
 
 # check external IP for the front end app and wait until the external-ip is on
-kubectl get service azure-vote-front --watch
+kubectl get service azure-vote-front --watch --namespace=azurevote
 
 # test to make sure you can access the html
-CURL http://20.81.7.29
+CURL http://<EXTERNAL-IP>
 
-# install NR1 (go to NR1, add more data, search for Kubernetes and follow the instructions and download the manifest file
-kubectl apply -f https://download.newrelic.com/install/kubernetes/pixie/latest/px.dev_viziers.yaml
-kubectl apply -f https://download.newrelic.com/install/kubernetes/pixie/latest/olm_crd.yaml
-kubectl create namespace newrelic
-kubectl apply -f <PATH_TO_DOWNLOADED_FILE>
+# install using helm3 (to install Helm 3 cli, follow https://helm.sh/docs/intro/install/)
+kubectl apply -f https://download.newrelic.com/install/kubernetes/pixie/latest/px.dev_viziers.yaml && \
+kubectl apply -f https://download.newrelic.com/install/kubernetes/pixie/latest/olm_crd.yaml && \
+helm repo add newrelic https://helm-charts.newrelic.com && helm repo update && \
+kubectl create namespace newrelic ; helm upgrade --install newrelic-bundle newrelic/nri-bundle \
+ --set global.licenseKey=aa5e613a1dfacd9921d7b26e6f2f48070065NRAL \
+ --set global.cluster=nrdemo \
+ --namespace=newrelic \
+ --set newrelic-infrastructure.privileged=true \
+ --set global.lowDataMode=true \
+ --set ksm.enabled=true \
+ --set prometheus.enabled=true \
+ --set kubeEvents.enabled=true \
+ --set logging.enabled=true \
+ --set newrelic-pixie.enabled=true \
+ --set newrelic-pixie.apiKey=px-api-6202deb5-6fe5-444c-8df1-c95b576af463 \
+ --set pixie-chart.enabled=true \
+ --set pixie-chart.deployKey=px-dep-9cfbafee-c35a-43d1-a75f-8ee12999570b \
+ --set pixie-chart.clusterName=nrdemo
 
-# install k6 load test from https://k6.io and run quick load test
-# NOTE: update the ipaddress of the host in the simple.js file first
-k6 run loadtests/simple.js
+# install k6 load test from https://k6.io and run quick load test (replace EXTERNAL-IP with the correct external IP you get above)
+k6 run  -e PUBLIC_IP=<EXTERNAL-IP> loadtests/azure-vote.js
 
-# make sure you can see traffic coming into the cluster
+# go to NR1, select Kubernetes and click on Live debugging with Pixie and select "px/http_request_stats"
+# you will see traffic going into the cluster
 ```
-
-You should see something like this
-![](2021-12-23-09-29-24.png)
-
-## Setup pixie
-
-Pixe automatic setup via Safari is not working due to this error
-![](2021-12-23-09-44-40.png)
-
-Port 8085 is open
-![](2021-12-23-09-27-15.png)
-
-This works fine for Chrome
-
-Manaul setup also works (px auth login --manual)
