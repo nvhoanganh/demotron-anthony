@@ -30,7 +30,18 @@ export default function () {
     'status is 200': (r) => r.status === 200,
   });
 
-  const requests = ['catalogue/size?tags=', 'tags', 'catalogue?page=1&size=6&tags=', 'cart'];
+  let requests = ['catalogue/size?tags=', 'tags', 'catalogue?page=1&size=6&tags=', 'cart', 'card', 'address', 'basket.html'];
+  requests.forEach(url => {
+    const dest = `${BASE_URL}${url}`
+    const reqr = http.get(dest);
+    const checkresult = check(reqr, {
+      'status is 200': (r) => r.status === 200,
+    });
+  });
+
+  sleep(1);
+
+  requests = ['basket.html', 'cart','card','address'];
   requests.forEach(url => {
     const dest = `${BASE_URL}${url}`
     const reqr = http.get(dest);

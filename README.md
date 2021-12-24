@@ -1,6 +1,6 @@
-# New Relic Demo environment setup on Azure
+# New Relic Demo environment setup on Azure AKS
 
-## Part 1. Setup a simple 2 Tier application (UI + Redis) on AKS
+## Part 1. Setup a simple 2 Tier application (UI + Redis) on new AKS Cluster
 
 ```bash
 # create resource group
@@ -55,7 +55,7 @@ k6 run  -e PUBLIC_IP=<EXTERNAL-IP> loadtests/azure-vote.js
 
 ## Part 2. Setup a complex Microservice application to AKS
 ```bash
-# deploy https://github.com/microservices-demo/microservices-demo by first download the yaml file
+# deploy https://github.com/microservices-demo/microservices-demo/blob/master/internal-docs/design.md by first download the yaml file
 curl -fsSL https://raw.githubusercontent.com/microservices-demo/microservices-demo/master/deploy/kubernetes/complete-demo.yaml > apps/sock-shop.yaml
 
 # update the type for front-end servvice to LoadBalancer from NodePort
@@ -73,3 +73,4 @@ k6 run  -e PUBLIC_IP=<EXTERNAL-IP> loadtests/sock-shop.js
 # go to NR1, select Kubernetes and click on Live debugging with Pixie and select "px/http_request_stats"
 # you will see traffic going into the cluster
 ```
+
