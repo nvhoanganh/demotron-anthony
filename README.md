@@ -1,6 +1,6 @@
 # New Relic Demo environment setup on Azure
 
-## Setup a simple 2 Tier application (UI + Redis) on AKS
+## Part 1. Setup a simple 2 Tier application (UI + Redis) on AKS
 
 ```bash
 # create resource group
@@ -47,6 +47,28 @@ kubectl create namespace newrelic ; helm upgrade --install newrelic-bundle newre
 
 # install k6 load test from https://k6.io and run quick load test (replace EXTERNAL-IP with the correct external IP you get above)
 k6 run  -e PUBLIC_IP=<EXTERNAL-IP> loadtests/azure-vote.js
+
+# go to NR1, select Kubernetes and click on Live debugging with Pixie and select "px/http_request_stats"
+# you will see traffic going into the cluster
+```
+
+
+## Part 2. Setup a complex Microservice application to AKS
+```bash
+# deploy https://github.com/microservices-demo/microservices-demo by first download the yaml file
+curl -fsSL https://raw.githubusercontent.com/microservices-demo/microservices-demo/master/deploy/kubernetes/complete-demo.yaml > apps/sock-shop.yaml
+
+# update the type for front-end servvice to LoadBalancer from NodePort
+kubectl apply -f apps/sock-shop.yaml --namespace=sock-shop
+
+# get the external IP of the front-end service
+kubectl get service --watch --namespace=sock-shop
+
+# make sure the frontend is now accessible
+curl http://<EXTERNAL-IP>
+
+# run load test against this new Website
+k6 run  -e PUBLIC_IP=<EXTERNAL-IP> loadtests/sock-shop.js
 
 # go to NR1, select Kubernetes and click on Live debugging with Pixie and select "px/http_request_stats"
 # you will see traffic going into the cluster
