@@ -112,66 +112,68 @@ k6 run  -e PUBLIC_IP=<EXTERNAL-IP> loadtests/sock-shop.js
 # you will see traffic going into the cluster
 ```
 
-## Part 4. Add APM to Node JS Service
+## Part 4. Add APM to a NodeJs Service and enable distributed tracing
+- right now under `Services - APM` you wouldn't see any entries belong to the sock-shop
 
 ```bash
+# signup for a docker.com account
 # clone https://github.com/microservices-demo/front-end and build your own docker image
 mkdir apps/sock-shop
 cd apps/sock-shop
 git clone https://github.com/microservices-demo/front-end
 cd apps/sock-shop/front-end
-docker build . -t <YOUR-DOCKER-ACCOUNT>/sock-shop-frontend:0.0.1
+docker build . -t <YOUR-DOCKER-ACCOUNT>/sock-shop-frontend:same
 
 # if you're on M1 macbook (like me), then you will need to build amd64
-docker push <YOUR-DOCKER-ACCOUNT>/sock-shop-frontend:0.0.1
+docker push <YOUR-DOCKER-ACCOUNT>/sock-shop-frontend:same
 
-# make a copy of sock-shop.yaml and replace image: weaveworksdemos/front-end:0.3.12 with your own image
-# docker buildx build --platform linux/amd64 . -t <YOUR-DOCKER-ACCOUNT>/sock-shop-frontend:0.0.1
-
+# update line 19 of /apps/sock-shop-frontend-1.yaml and replace nvhoanganh1909 with your docker account name
 cd ../..
-cp sock-shop.yaml sock-shop-copied.yaml
 
 # apply the change
-kubectl apply -f sock-shop-copied.yaml --namespace=sock-shop
+kubectl apply -f sock-shop-frontend-own-image.yaml --namespace=sock-shop
 
 # make sure URL still working
 curl http://<EXTERNAL-IP>
 
-# install
+# install NR nodejs agent
 cd sock-shop/front-end
 npm install newrelic --save
 
-# go to NR1, Select "Add More "
-# download newrelic.js file to the root of the front-end folder
-# add require('newrelic') to beginning of server.js file
-# run `npm start` and open http://localhost:8079 and make sure you receive data in NR1
-
-# if yes, build new version again by running
-# update Dockerfile under front-end folder, and base image to node:12-alpine from node:10-alpine since NewRelic package supports node > 12
-docker build . -t <YOUR-DOCKER-ACCOUNT>/sock-shop-frontend:0.0.2
+# Edit Dockerfile and add ENV NEW_RELIC_NO_CONFIG_FILE=true
+docker build . -t <YOUR-DOCKER-ACCOUNT>/sock-shop-frontend:apm
 
 # push the image again
-docker push <YOUR-DOCKER-ACCOUNT>/sock-shop-frontend:0.0.2
+docker push <YOUR-DOCKER-ACCOUNT>/sock-shop-frontend:apm
 
-# update the version in sock-shop-copied.yaml and run kubectl apply again
-kubectl apply -f sock-shop-copied.yaml --namespace=sock-shop
+# IMPORTANT: update sock-shop-frontend-own-image-with-apm.yaml file, line 33 with your NR API key
+cd ../..
+kubectl apply -f sock-shop-frontend-own-image-with-apm.yaml --namespace=sock-shop
+
+# run load test again and come back to Services - APM, you should see one new entry there
+k6 run  -e PUBLIC_IP=<EXTERNAL-IP> loadtests/sock-shop.js
 ```
-## Part 4. Add Browser monitoring
+
+## Part 5. Add Browser monitoring
 
 ```bash
 # go to NR1, select Add more data and select Browser and select 'Copy/Paste Javascript code'
 # select the app from previous step
-# edit apps/sock-shop/front-end/public/index.html file and add the script to the <head>
-# run `npm start`, open the app at http://localhost:8079 and make sure you can see data for browser app
+# edit apps/sock-shop/front-end/public/js/front.js file and paste the content of the <script type="text/javascript"> tag in it (NOT including <script type="text/javascript"> itself)
 
 # build new version again
-docker build . -t <YOUR-DOCKER-ACCOUNT>/sock-shop-frontend:0.0.3
+cd sock-shop/front-end
+docker build . -t <YOUR-DOCKER-ACCOUNT>/sock-shop-frontend:rum
 
 # push the image again
-docker push <YOUR-DOCKER-ACCOUNT>/sock-shop-frontend:0.0.3
+docker push <YOUR-DOCKER-ACCOUNT>/sock-shop-frontend:rum
 
-# update the version in sock-shop-copied.yaml and run kubectl apply again
-kubectl apply -f sock-shop-copied.yaml --namespace=sock-shop
+# apply change
+cd ../..
+kubectl apply -f sock-shop-frontend-own-image-with-rum.yaml --namespace=sock-shop
+
+# manually navigate to the app via browser, click through some pages
+# go back to NR1, click on Browsers app, you should see new app in the list
 ```
 
 ## Delete your cluster
