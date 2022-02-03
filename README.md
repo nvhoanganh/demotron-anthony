@@ -83,20 +83,27 @@ px run -f pixiescripts/getagents.pxl -o json
 px run -f pixiescripts/getagents.pxl -o csv
 ```
 
-## Part 3. Setup a more complex Microservice application to AKS
+## Part 3. Setup E-Commerce Microservice application to AKS
 
 ```bash
 # deploy https://github.com/microservices-demo/microservices-demo/blob/master/internal-docs/design.md by first download the yaml file
 curl -fsSL https://raw.githubusercontent.com/microservices-demo/microservices-demo/master/deploy/kubernetes/complete-demo.yaml > apps/sock-shop.yaml
 
 # update the type for front-end servvice to LoadBalancer from NodePort
+kubectl create namespace sock-shop
+
 kubectl apply -f apps/sock-shop.yaml --namespace=sock-shop
 
 # get the external IP of the front-end service
 kubectl get service --watch --namespace=sock-shop
 
+# make sure all containers are running properly
+kubectl get pod --namespace=sock-shop
+
 # make sure the frontend is now accessible
 curl http://<EXTERNAL-IP>
+
+# open http://<EXTERNAL-IP> and play around with the app (sign up for user, add to cart, checkout, etc..)
 
 # run load test against this new Website
 k6 run  -e PUBLIC_IP=<EXTERNAL-IP> loadtests/sock-shop.js
