@@ -1,6 +1,16 @@
 # New Relic Demo environment setup on Azure AKS
+- This tutorial will walk you through the steps on how you can deploy a complex, multi-language microservice E-Commerce application to a AKS K8s cluster and then monitor it using [https://pixielabs.ai](https://pixielabs.ai) and New Relic
+
+## Prerequisites
+- Azure account with enough credit to run AKS cluster with 2 nodes
+- a new New Relic account [sign up here](https://newrelic.com/signup)
+- Docker desktop installed
+- Docker Hub account [sign up here](https://hub.docker.com/signup)
+- kubectl, helm3 CLI installed
+- k6 load test tool [install here](https://k6.io/docs/getting-started/installation/)
 
 ## Part 1. Setup a simple 2 Tier application (UI + Redis) on new AKS Cluster
+- First, let's setup our K8s Cluster in Azure and deploy a simple application and monitor it using New Relic and Pixie
 
 ```bash
 # create resource group
@@ -24,7 +34,7 @@ kubectl apply -f apps/azure-vote.yaml --namespace=azurevote
 # check external IP for the front end app and wait until the external-ip is on
 kubectl get service azure-vote-front --watch --namespace=azurevote
 
-# test to make sure you can access the html
+# test to make sure you can access the html, you can also open this URL on browser
 CURL http://<EXTERNAL-IP>
 
 # install helm3 at https://helm.sh/docs/intro/install/
@@ -73,22 +83,13 @@ px scripts list
 # open http://<EXTERNAL-IP> and click on Dogs or Cats then run this command
 px run px/redis_data
 
-# run local pixie script
-px run -f get_connections_to_mongodb.py
 
-# run local pixie script - output in json format
-px run -f get_connections_to_mongodb.py -o json
-
-# run local pixie script - output in csv format
-px run -f get_connections_to_mongodb.py -o csv
 ```
 
 ## Part 3. Setup E-Commerce Microservice application to AKS
-
+- next, let's deploy our e-commerce microservice application [link](https://github.com/microservices-demo/microservices-demo/blob/master/internal-docs/design.md)
 ```bash
-# deploy https://github.com/microservices-demo/microservices-demo/blob/master/internal-docs/design.md by first download the yaml file
-curl -fsSL https://raw.githubusercontent.com/microservices-demo/microservices-demo/master/deploy/kubernetes/complete-demo.yaml > apps/sock-shop.yaml
-
+# deploy https://github.com/microservices-demo/microservices-demo/blob/master/internal-docs/design.md
 # update the type for front-end servvice to LoadBalancer from NodePort
 kubectl create namespace sock-shop
 
@@ -110,10 +111,18 @@ k6 run  -e PUBLIC_IP=<EXTERNAL-IP> loadtests/sock-shop.js
 
 # go to NR1, select Kubernetes and click on Live debugging with Pixie and select "px/http_request_stats"
 # you will see traffic going into the cluster
+
+# run a custom Pixie script to see the MongoDB connections
+px run -f get_connections_to_mongodb.py
+
+# run local pixie script - output in json or csv format
+px run -f get_connections_to_mongodb.py -o json
 ```
 
 ## Part 4. Add APM to a NodeJs Service and enable distributed tracing
+- right now, we don't really have distributed tracing for the sock-shop application. This is because Pixie can only inspect http traffic but cannot modify them. For Distributed tracing to work, we will need to inject custom `traceid` header to all HTTP traffic.
 - right now under `Services - APM` you wouldn't see any entries belong to the sock-shop
+- in this step, we will add New Relic APM agent to couple of our services and turn on distributed tracing
 
 ```bash
 # signup for a docker.com account
@@ -154,7 +163,11 @@ kubectl apply -f sock-shop-frontend-own-image-with-apm.yaml --namespace=sock-sho
 k6 run  -e PUBLIC_IP=<EXTERNAL-IP> loadtests/sock-shop.js
 ```
 
-## Part 5. Add Browser monitoring
+## Part 5. Add APM to Golang Service and enable distributed tracing
+- follow the same process in step 4, let's enable APM agent for the User service https://github.com/microservices-demo/user
+
+## Part 6. Add Browser monitoring
+- now that we have APM agent installed for our backend services, let's monitor Real User experience by enabling Browser Integration
 
 ```bash
 # go to NR1, select Add more data and select Browser and select 'Copy/Paste Javascript code'
@@ -176,8 +189,9 @@ kubectl apply -f sock-shop-frontend-own-image-with-rum.yaml --namespace=sock-sho
 # go back to NR1, click on Browsers app, you should see new app in the list
 ```
 
-## Delete your cluster
+# Clean up your Resources
 
 ```bash
+# delete the AKS cluster
 az aks delete --name pixiecluster --resource-group pixiedemo
 ```
