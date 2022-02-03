@@ -74,13 +74,13 @@ px scripts list
 px run px/redis_data
 
 # run local pixie script
-px run -f pixiescripts/getagents.pxl
+px run -f get_connections_to_mongodb.py
 
 # run local pixie script - output in json format
-px run -f pixiescripts/getagents.pxl -o json
+px run -f get_connections_to_mongodb.py -o json
 
 # run local pixie script - output in csv format
-px run -f pixiescripts/getagents.pxl -o csv
+px run -f get_connections_to_mongodb.py -o csv
 ```
 
 ## Part 3. Setup E-Commerce Microservice application to AKS
