@@ -220,25 +220,8 @@ execute chmod +x "${INSTALL_PATH}"/px_new
 execute mv "${INSTALL_PATH}"/px_new "${INSTALL_PATH}"/px
 
 echo
-emph "Authenticating with Pixie Cloud:"
-
-
-if ! "${INSTALL_PATH}"/px auth login -q; then
-cat << EOS
-
-${tty_red}FAILED to authenticate with Pixie cloud. ${tty_reset}
-  You can try this step yourself by running ${tty_green}px auth login${tty_reset}.
-  For help, please contact support@pixielabs.ai or join our community slack/github"
-
-EOS
-fi
-
-echo
 emph "Next steps:"
 cat << EOS
 - PX CLI has been installed to: ${INSTALL_PATH}. Make sure this directory is in your PATH.
-- Run ${tty_green}px deploy${tty_reset} to deploy pixie on K8s.
-- Run ${tty_green}px help${tty_reset} to get started, or visit our UI: ${tty_underline}https://${CLOUD_ADDR}${tty_reset}
-- Further documentation:
-    ${tty_underline}https://${CLOUD_ADDR}/docs${tty_reset}
+- You are not authenticated yet
 EOS
