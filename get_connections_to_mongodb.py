@@ -5,7 +5,7 @@ import px
 df = px.DataFrame(table='conn_stats', start_time='-30m')
 
 # select column you want, you can run `px live px/schemas` to get the column list of tables and column names
-df = df[['time_','remote_addr','remote_port','conn_open', 'conn_close','bytes_sent','bytes_recv']]
+df = df[['remote_addr','remote_port','conn_open', 'conn_close']]
 
 # attach Context information
 df.pod = df.ctx['pod']

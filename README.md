@@ -129,8 +129,8 @@ px run -f get_connections_to_mongodb.py -o json
 # clone https://github.com/microservices-demo/front-end and build your own docker image
 mkdir apps/sock-shop
 cd apps/sock-shop
-git clone https://github.com/microservices-demo/front-end
-cd apps/sock-shop/front-end
+git clone https://github.com/microservices-demo/front-end.git
+cd front-end
 docker build . -t <YOUR-DOCKER-ACCOUNT>/sock-shop-frontend:same
 
 # if you're on M1 macbook (like me), then you will need to build amd64
@@ -166,6 +166,45 @@ k6 run  -e PUBLIC_IP=<EXTERNAL-IP> loadtests/sock-shop.js
 ## Part 5. Add APM to Golang Service and enable distributed tracing
 - follow the same process in step 4, let's enable APM agent for the User service https://github.com/microservices-demo/user
 
+```bash
+# signup for a docker.com account
+# clone https://github.com/microservices-demo/front-end and build your own docker image
+mkdir apps/sock-shop
+cd apps/sock-shop
+git clone https://github.com/microservices-demo/user.git
+cd user
+docker build . -t <YOUR-DOCKER-ACCOUNT>/sock-shop-user:same
+
+# if you're on M1 macbook (like me), then you will need to build amd64
+docker push <YOUR-DOCKER-ACCOUNT>/sock-shop-frontend:same
+
+# update line 19 of /apps/sock-shop-frontend-1.yaml and replace nvhoanganh1909 with your docker account name
+cd ../..
+
+# apply the change
+kubectl apply -f sock-shop-frontend-own-image.yaml --namespace=sock-shop
+
+# make sure URL still working
+curl http://<EXTERNAL-IP>
+
+# install NR nodejs agent
+cd sock-shop/front-end
+npm install newrelic --save
+
+# Edit Dockerfile and add ENV NEW_RELIC_NO_CONFIG_FILE=true
+docker build . -t <YOUR-DOCKER-ACCOUNT>/sock-shop-frontend:apm
+
+# push the image again
+docker push <YOUR-DOCKER-ACCOUNT>/sock-shop-frontend:apm
+
+# IMPORTANT: update sock-shop-frontend-own-image-with-apm.yaml file, line 33 with your NR API key
+cd ../..
+kubectl apply -f sock-shop-frontend-own-image-with-apm.yaml --namespace=sock-shop
+
+# run load test again and come back to Services - APM, you should see one new entry there
+k6 run  -e PUBLIC_IP=<EXTERNAL-IP> loadtests/sock-shop.js
+```
+
 ## Part 6. Add Browser monitoring
 - now that we have APM agent installed for our backend services, let's monitor Real User experience by enabling Browser Integration
 
@@ -189,9 +228,24 @@ kubectl apply -f sock-shop-frontend-own-image-with-rum.yaml --namespace=sock-sho
 # go back to NR1, click on Browsers app, you should see new app in the list
 ```
 
+## Install New Relic Infrastructure Agent + Flex on K8s and push Pixie data to NRDB
+
+```bash
+
+# get the nodes of the k8s cluster
+
+
+# copy the name of the first node and paste it here
+kubectl debug node/NODE_NAME_HERE -it --image=mcr.microsoft.com/aks/fundamental/base-ubuntu:v0.0.11
+
+curl -Ls https://download.newrelic.com/install/newrelic-cli/scripts/install.sh | bash && NEW_RELIC_API_KEY=NRAK-WDEGR4KB9P7BPM2NT3IJC4UJ39V NEW_RELIC_ACCOUNT_ID=3400472 /usr/local/bin/newrelic install
+```
 # Clean up your Resources
 
 ```bash
 # delete the AKS cluster
 az aks delete --name pixiecluster --resource-group pixiedemo
 ```
+
+
+bash -c "$(curl -fsSL https://withpixie.ai/install.sh)" && px auth login --api_key='px-api-b3982d46-a72c-4aa2-ba1e-28d1c5d1b24b' && px run px/cluster -c cf6e3d15-c112-4240-95c0-6266e05c29d0

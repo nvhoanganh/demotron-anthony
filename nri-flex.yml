@@ -1,0 +1,123 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: nri-flex
+  namespace: default
+  labels:
+    name: nri-flex
+spec:
+  selector:
+    matchLabels:
+      name: nri-flex
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        name: nri-flex
+    spec:
+      hostNetwork: true
+      hostPID: true
+      containers:
+        - name: nri-flex
+          image: nvhoanganh1909/newrelic_infrastructure_with_pixie:latest
+          imagePullPolicy: Always
+          env:
+            - name: NRIA_DISPLAY_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: 'v1'
+                  fieldPath: 'spec.nodeName'
+            - name: NRK8S_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: 'v1'
+                  fieldPath: 'spec.nodeName'
+            - name: PIXIE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: pixiesecrets
+                  key: pixieapikey
+            - name: NRIA_LICENSE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: pixiesecrets
+                  key: nringestapi
+          volumeMounts:
+            - mountPath: /host
+              name: host-volume
+              readOnly: true
+            - mountPath: /kubeconfig
+              name: kubeconfig
+            - mountPath: /var/run/docker.sock
+              name: host-docker-socket
+            - mountPath: /etc/newrelic-infra/integrations.d/
+              name: nri-integration-cfg-volume
+            - mountPath: /custom-scripts
+              name: custom-scripts
+              readOnly: true
+          resources:
+            limits:
+              memory: 300M
+            requests:
+              cpu: 100m
+              memory: 100M
+      volumes:
+        - name: host-volume
+          hostPath:
+            path: /
+        - name: host-docker-socket
+          hostPath:
+            path: /var/run/docker.sock
+        - name: nri-default-integration-cfg-volume
+          configMap:
+            name: nri-default-integration-cfg
+        - name: nri-integration-cfg-volume
+          configMap:
+            name: nri-integration-cfg
+        - name: custom-scripts
+          configMap:
+            name: custom-scripts
+        - name: kubeconfig
+          secret:
+            secretName: pixiesecrets
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nri-integration-cfg
+  namespace: default
+data:
+  nri-flex.yml: |
+    integrations:
+      - name: nri-flex
+        config:
+          name: example
+          apis:
+            - event_type: PixieMongoDbConnections
+              commands:
+                - run: px auth login --api_key=$PIXIE_API_KEY --kubeconfig /kubeconfig/config && px run -f /custom-scripts/mongo-db-connections.pxl --kubeconfig /kubeconfig/config -o csv
+                  split: horizontal
+                  set_header: [tableid, remote_addr, remote_port, conn_open, conn_close, pod, service]
+                  row_start: 4
+                  split_by: \,
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: custom-scripts
+  namespace: default
+data:
+  mongo-db-connections.pxl: |
+    import px
+
+    df = px.DataFrame(table='conn_stats', start_time='-30s')
+
+    df = df[['remote_addr','remote_port','conn_open', 'conn_close']]
+
+    df.pod = df.ctx['pod']
+    df.service = df.ctx['service']
+
+    df = df[df['remote_port'] == 27017]
+
+    px.display(df)
