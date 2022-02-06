@@ -33,11 +33,6 @@ spec:
                 fieldRef:
                   apiVersion: 'v1'
                   fieldPath: 'spec.nodeName'
-            - name: PIXIE_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: pixiesecrets
-                  key: pixieapikey
             - name: NRIA_LICENSE_KEY
               valueFrom:
                 secretKeyRef:
@@ -96,7 +91,7 @@ data:
           apis:
             - event_type: PixieMongoDbConnections
               commands:
-                - run: px auth login --api_key=$PIXIE_API_KEY --kubeconfig /kubeconfig/config && px run -f /custom-scripts/mongo-db-connections.pxl --kubeconfig /kubeconfig/config -o csv
+                - run: export PX_API=$(cat /kubeconfig/pixieapikey) && px auth login --api_key=$PX_API --kubeconfig /kubeconfig/config && px run -f /custom-scripts/mongo-db-connections.pxl --kubeconfig /kubeconfig/config -o csv
                   split: horizontal
                   set_header: [tableid, remote_addr, remote_port, conn_open, conn_close, pod, service]
                   row_start: 4
