@@ -1,16 +1,19 @@
 # New Relic Demo environment setup on Azure AKS
-- This tutorial will walk you through the steps on how you can deploy a complex, multi-language microservice E-Commerce application to a AKS K8s cluster and then monitor it using [https://pixielabs.ai](https://pixielabs.ai) and New Relic
+
+-   This tutorial will walk you through the steps on how you can deploy a complex, multi-language microservice E-Commerce application to a AKS K8s cluster and then monitor it using [https://pixielabs.ai](https://pixielabs.ai) and New Relic
 
 ## Prerequisites
-- Azure account with enough credit to run AKS cluster with 2 nodes
-- a new New Relic account [sign up here](https://newrelic.com/signup)
-- Docker desktop installed
-- Docker Hub account [sign up here](https://hub.docker.com/signup)
-- kubectl, helm3 CLI installed
-- k6 load test tool [install here](https://k6.io/docs/getting-started/installation/)
+
+-   Azure account with enough credit to run AKS cluster with 2 nodes
+-   a new New Relic account [sign up here](https://newrelic.com/signup)
+-   Docker desktop installed
+-   Docker Hub account [sign up here](https://hub.docker.com/signup)
+-   kubectl, helm3 CLI installed
+-   k6 load test tool [install here](https://k6.io/docs/getting-started/installation/)
 
 ## Part 1. Setup a simple 2 Tier application (UI + Redis) on new AKS Cluster
-- First, let's setup our K8s Cluster in Azure and deploy a simple application and monitor it using New Relic and Pixie
+
+-   First, let's setup our K8s Cluster in Azure and deploy a simple application and monitor it using New Relic and Pixie
 
 ```bash
 # create resource group
@@ -87,7 +90,9 @@ px run px/redis_data
 ```
 
 ## Part 3. Setup E-Commerce Microservice application to AKS
-- next, let's deploy our e-commerce microservice application [link](https://github.com/microservices-demo/microservices-demo/blob/master/internal-docs/design.md)
+
+-   next, let's deploy our e-commerce microservice application [link](https://github.com/microservices-demo/microservices-demo/blob/master/internal-docs/design.md)
+
 ```bash
 # deploy https://github.com/microservices-demo/microservices-demo/blob/master/internal-docs/design.md
 # update the type for front-end servvice to LoadBalancer from NodePort
@@ -120,9 +125,10 @@ px run -f get_connections_to_mongodb.py -o json
 ```
 
 ## Part 4. Add APM to a NodeJs Service and enable distributed tracing
-- right now, we don't really have distributed tracing for the sock-shop application. This is because Pixie can only inspect http traffic but cannot modify them. For Distributed tracing to work, we will need to inject custom `traceid` header to all HTTP traffic.
-- right now under `Services - APM` you wouldn't see any entries belong to the sock-shop
-- in this step, we will add New Relic APM agent to couple of our services and turn on distributed tracing
+
+-   right now, we don't really have distributed tracing for the sock-shop application. This is because Pixie can only inspect http traffic but cannot modify them. For Distributed tracing to work, we will need to inject custom `traceid` header to all HTTP traffic.
+-   right now under `Services - APM` you wouldn't see any entries belong to the sock-shop
+-   in this step, we will add New Relic APM agent to couple of our services and turn on distributed tracing
 
 ```bash
 # signup for a docker.com account
@@ -164,7 +170,8 @@ k6 run  -e PUBLIC_IP=<EXTERNAL-IP> loadtests/sock-shop.js
 ```
 
 ## Part 5. Add APM to Golang Service and enable distributed tracing
-- follow the same process in step 4, let's enable APM agent for the User service https://github.com/microservices-demo/user
+
+-   follow the same process in step 4, let's enable APM agent for the User service https://github.com/microservices-demo/user
 
 ```bash
 # signup for a docker.com account
@@ -206,7 +213,8 @@ k6 run  -e PUBLIC_IP=<EXTERNAL-IP> loadtests/sock-shop.js
 ```
 
 ## Part 6. Add Browser monitoring
-- now that we have APM agent installed for our backend services, let's monitor Real User experience by enabling Browser Integration
+
+-   now that we have APM agent installed for our backend services, let's monitor Real User experience by enabling Browser Integration
 
 ```bash
 # go to NR1, select Add more data and select Browser and select 'Copy/Paste Javascript code'
@@ -228,24 +236,40 @@ kubectl apply -f sock-shop-frontend-own-image-with-rum.yaml --namespace=sock-sho
 # go back to NR1, click on Browsers app, you should see new app in the list
 ```
 
-## Install New Relic Infrastructure Agent + Flex on K8s and push Pixie data to NRDB
+## Part 7: Install New Relic Infrastructure Agent + Flex on K8s and push Pixie data to NRDB
+
+-   you can use New Relic Infrastructure Agent and Pixie CLI to periodically push metrics from Pixie to NRDB
 
 ```bash
+# build and push new New Relic Infrastructure agent image with Pixie cli installed
 
-# get the nodes of the k8s cluster
+docker build . -t <YOUR-DOCKER-ACCOUNT>/newrelic_infrastructure_with_pixie:latest
 
+docker push <YOUR-DOCKER-ACCOUNT>/newrelic_infrastructure_with_pixie:latest
 
-# copy the name of the first node and paste it here
-kubectl debug node/NODE_NAME_HERE -it --image=mcr.microsoft.com/aks/fundamental/base-ubuntu:v0.0.11
+# create file containging New Relic ingest API key
+echo -n 'YOUR_NR_API_KEY' > nringestapi
 
-curl -Ls https://download.newrelic.com/install/newrelic-cli/scripts/install.sh | bash && NEW_RELIC_API_KEY=NRAK-WDEGR4KB9P7BPM2NT3IJC4UJ39V NEW_RELIC_ACCOUNT_ID=3400472 /usr/local/bin/newrelic install
+# create file containging PIXIE API key
+# you can get this by click on `Copy command` link under `Live debugging with Pixie` tab on New Relic Kubernetes Cluster Explorer page
+echo -n 'YOUR_PIXIE_API_KEY' > pixieapikey
+
+# assuming your kubectl config file is at default location: $HOME/.kube/config
+kubectl create secret generic pixiesecrets --from-file=./pixiesecrets/pixieapikey --from-file=$HOME/.kube/config --from-file=./pixiesecrets/nringestapi
+
+# deploy the file
+kubectl apply -f nri-flex.yml
 ```
+
+-   after couple minutes, you can query the data in New Relic like this
+
+![](querypixiedata.png)
+
 # Clean up your Resources
 
 ```bash
 # delete the AKS cluster
 az aks delete --name pixiecluster --resource-group pixiedemo
 ```
-
 
 bash -c "$(curl -fsSL https://withpixie.ai/install.sh)" && px auth login --api_key='px-api-b3982d46-a72c-4aa2-ba1e-28d1c5d1b24b' && px run px/cluster -c cf6e3d15-c112-4240-95c0-6266e05c29d0
