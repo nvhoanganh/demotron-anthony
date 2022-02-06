@@ -236,7 +236,7 @@ kubectl apply -f sock-shop-frontend-own-image-with-rum.yaml --namespace=sock-sho
 # go back to NR1, click on Browsers app, you should see new app in the list
 ```
 
-## Part 7: Install New Relic Infrastructure Agent + Flex on K8s and push Pixie data to NRDB
+## Part 7. Install New Relic Infrastructure Agent + Flex on K8s and push Pixie data to NRDB
 
 -   you can use New Relic Infrastructure Agent and Pixie CLI to periodically push metrics from Pixie to NRDB
 
