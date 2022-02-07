@@ -271,5 +271,3 @@ kubectl apply -f nri-flex.yml
 # delete the AKS cluster
 az aks delete --name pixiecluster --resource-group pixiedemo
 ```
-
-bash -c "$(curl -fsSL https://withpixie.ai/install.sh)" && px auth login --api_key='px-api-b3982d46-a72c-4aa2-ba1e-28d1c5d1b24b' && px run px/cluster -c cf6e3d15-c112-4240-95c0-6266e05c29d0
