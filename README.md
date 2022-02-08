@@ -8,7 +8,7 @@
 -   a new New Relic account [sign up here](https://newrelic.com/signup)
 -   Docker desktop installed
 -   Docker Hub account [sign up here](https://hub.docker.com/signup)
--   kubectl, helm3 CLI installed
+-   kubectl, helm3, azure CLI installed
 -   k6 load test tool [install here](https://k6.io/docs/getting-started/installation/)
 
 ## Part 1. Setup a simple 2 Tier application (UI + Redis) on new AKS Cluster
@@ -132,17 +132,22 @@ px run -f get_connections_to_mongodb.py -o json
 
 ```bash
 # signup for a docker.com account
-# clone https://github.com/microservices-demo/front-end and build your own docker image
+# fork and clone https://github.com/microservices-demo/front-end and build your own docker image
 mkdir apps/sock-shop
 cd apps/sock-shop
-git clone https://github.com/microservices-demo/front-end.git
+git clone https://github.com/<YOUR_GITHUB_USER>/front-end.git
 cd front-end
+
+# modify Dockerfile and change from 'FROM node:12-alpine' to 'FROM node:12-alpine'
+
 docker build . -t <YOUR-DOCKER-ACCOUNT>/sock-shop-frontend:same
 
+
 # if you're on M1 macbook (like me), then you will need to build amd64
+# docker buildx build --platform linux/amd64 . -t <YOUR-DOCKER-ACCOUNT>/sock-shop-frontend:same --progress=plain
 docker push <YOUR-DOCKER-ACCOUNT>/sock-shop-frontend:same
 
-# update line 19 of /apps/sock-shop-frontend-1.yaml and replace nvhoanganh1909 with your docker account name
+# update line 19 of /apps/sock-shop-frontend-own-image.yaml and replace nvhoanganh1909 with your docker account name
 cd ../..
 
 # apply the change
@@ -175,10 +180,10 @@ k6 run  -e PUBLIC_IP=<EXTERNAL-IP> loadtests/sock-shop.js
 
 ```bash
 # signup for a docker.com account
-# clone https://github.com/microservices-demo/front-end and build your own docker image
+# fork and clone https://github.com/microservices-demo/front-end and build your own docker image
 mkdir apps/sock-shop
 cd apps/sock-shop
-git clone https://github.com/microservices-demo/user.git
+git clone https://github.com/YOUR_GITHUB_USER/user.git
 cd user
 docker build . -t <YOUR-DOCKER-ACCOUNT>/sock-shop-user:same
 
@@ -264,6 +269,58 @@ kubectl apply -f nri-flex.yml
 -   after couple minutes, you can query the data in New Relic like this
 
 ![](querypixiedata.png)
+
+## Part 8. Introduce some error code and see them in New Relic
+
+-   right now the app is working perfectly, so there is no error
+-   to introduce some error, let's modify `apps/front-end/api/cart/index.js` file and add the following
+
+```javascript
+app.post("/cart/update", function (req, res, next) {
+    console.log("Attempting to update cart item: " + JSON.stringify(req.body));
+
+    // throw an error when quantity is greater than 10
+    if (parseInt(req.body.quantity) > 10) {
+      throw new Error("10 items is too much");
+    }
+
+    // rest of the file..
+```
+
+-   report unhanled errors to New Relic by modifying `app/front-end/helpers/index.js` file
+
+```javascript
+helpers.errorHandler = function (err, req, res, next) {
+	var ret = {
+		message: err.message,
+		error: err,
+	};
+	newrelic.noticeError(err);
+	res.status(err.status || 500).send(ret);
+};
+```
+
+-   build and deploy the new image
+
+```bash
+
+docker build . -t <YOUR-DOCKER-ACCOUNT>/sock-shop-frontend:error
+
+# push image
+docker push <YOUR-DOCKER-ACCOUNT>/sock-shop-frontend:error
+
+# update line 19 of /apps/sock-shop-frontend-own-image-with-error.yaml and replace nvhoanganh1909 with your docker account name
+# apply the change
+kubectl apply -f sock-shop-frontend-own-image-with-error.yaml --namespace=sock-shop
+
+# go to the app on browser, add an item into the cart and then update the cart
+# setting the quantity to 10 => works fine
+# setting the quantity to 11 => get 500 server (network tab in browser)
+# go to NR, select 'sock-shop-frontend' under APM, you should see some error reported under Events > Errors
+```
+
+-   click on error will show stack trace
+![](2022-02-08-19-06-15.png)
 
 # Clean up your Resources
 
