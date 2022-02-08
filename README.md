@@ -381,6 +381,15 @@ kubectl apply -f sock-shop-frontend-own-image-with-error-codestream.yaml --names
 
 ![](2022-02-08-22-12-22.png)
 
+- Note: even when the code is changed, because we have the git SHA, Code Stream will still be able to show you the line of code from the stack trace
+- let's demonstrate this by removing the lines of code we added earlier, like this
+
+![](2022-02-08-22-39-44.png)
+
+- Click on `Open In IDE` again, you will see that VScode is displaying the line of code
+
+![](2022-02-08-22-42-34.png)
+
 # Clean up your Resources
 
 ```bash
