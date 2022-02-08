@@ -1,25 +1,44 @@
-# New Relic Demo environment setup on Azure AKS
+# Create your own New Relic Demo environment on Kubernetes cluster
 
--   This tutorial will walk you through the steps on how you can deploy a complex, multi-language microservice E-Commerce application to a AKS K8s cluster and then monitor it using [https://pixielabs.ai](https://pixielabs.ai) and New Relic
+-   This tutorial will walk you through the process on how you can fully observe a complex, multi-language microservice based E-Commerce application running in a Kubernetes cluster using [https://pixielabs.ai](https://pixielabs.ai) and New Relic
+-   this walkthought will cover the following features of New Relic One Platform:
+    -   Create new Kubernetes cluster using either Azure AKS or AWS EKS
+    -   Deploy a full blown E-Commerce kubernetes application to your cluster
+    -   Start observing your kubernetes application with Pixie without instrumentation
+    -   Enable Distributed Tracing with New Relic APM
+    -   Monitor Real User Experience using Browser Monitoring
+    -   Pull custom K8s metrics into New Relic Database using Pixie Script and New Relic Flex
+    -   View application Errors in New Relic Errors Inbox
+    -   Jump straight to the error line in VSCode using New Relic CodeStream Integration
 
 ## Prerequisites
 
--   Azure account with enough credit to run AKS cluster with 2 nodes
--   a new New Relic account [sign up here](https://newrelic.com/signup)
--   Docker desktop installed
+-   Azure or AWS Cloud account
+-   A new New Relic account [sign up here](https://newrelic.com/signup)
+-   Docker desktop installed [link] (https://docs.docker.com/get-docker/)
 -   Docker Hub account [sign up here](https://hub.docker.com/signup)
--   kubectl, helm3, azure CLI installed
--   k6 load test tool [install here](https://k6.io/docs/getting-started/installation/)
+-   Github account [sign up here](https://github.com/join)
+-   Kubectl, helm3, nodejs, git, Azure or AWS cli installed
+-   K6 load test tool [link](https://k6.io/docs/getting-started/installation/)
+-   VScode [link](https://code.visualstudio.com/download)
+-   Basic Bash knowledge (all commands are Bash commands)
 
-## Part 1. Setup a simple 2 Tier application (UI + Redis) on new AKS Cluster
+## Create your new Kubernetes cluster
 
--   First, let's setup our K8s Cluster in Azure and deploy a simple application and monitor it using New Relic and Pixie
+### Create Azure AKS cluster
 
 ```bash
+# install azure cli at https://docs.microsoft.com/en-us/cli/azure/install-azure-cli
+# login
+az login
+
+# if you have multiple subscriptions, select the right subscription
+az account set -s SUBSCRIPTION_ID
+
 # create resource group
 az group create --name pixiedemo --location eastus
 
-# create the K8s Cluster with 2 nodes (do not enable monitoring)
+# create the K8s Cluster with 2 nodes (do not enable monitoring). We need 2 in order to see 2 nodes in New Relic
 az aks create --resource-group pixiedemo --name pixiecluster --node-count 2 --enable-addons http_application_routing --generate-ssh-keys --enable-rbac
 
 # connect to the cluster via kubectl
@@ -27,15 +46,40 @@ az aks install-cli
 az aks get-credentials --resource-group pixiedemo --name pixiecluster
 
 # confirm can connect to the cluster
-kubectl get nodes
+kubectl get nodes -o wide
+```
 
-# create the application
-kubectl create namespace azurevote
+### Create EKS Cluster in AWS
 
-kubectl apply -f apps/azure-vote.yaml --namespace=azurevote
+```bash
+# install aws cli at https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
+# login
+aws configure
+
+# install eksctl https://docs.aws.amazon.com/eks/latest/userguide/eksctl.html
+# create new Managed nodes cluster (not the Fargate), this will create 2 nodes cluster (m5.larger)
+eksctl create cluster --name pixiecluster --region us-east-1
+
+# install kubectl cli tool to your computer https://kubernetes.io/docs/tasks/tools/
+# download correct kubeconfig
+eksctl utils write-kubeconfig --cluster=pixiecluster
+
+# confirm can connect to the cluster
+kubectl get nodes -o wide
+```
+
+## Setup a simple 2 Tier application (UI + Redis) on new AKS Cluster
+
+-   First, let's deploy a very simple application and monitor it using New Relic and Pixie
+
+```bash
+# create simple Voting application
+kubectl create namespace simplevote
+
+kubectl apply -f apps/simple-vote.yaml --namespace=simplevote
 
 # check external IP for the front end app and wait until the external-ip is on
-kubectl get service azure-vote-front --watch --namespace=azurevote
+kubectl get service simple-vote-front --watch --namespace=simplevote
 
 # test to make sure you can access the html, you can also open this URL on browser
 CURL http://<EXTERNAL-IP>
@@ -174,50 +218,7 @@ kubectl apply -f sock-shop-frontend-own-image-with-apm.yaml --namespace=sock-sho
 k6 run  -e PUBLIC_IP=<EXTERNAL-IP> loadtests/sock-shop.js
 ```
 
-## Part 5. Add APM to Golang Service and enable distributed tracing
-
--   follow the same process in step 4, let's enable APM agent for the User service https://github.com/microservices-demo/user
-
-```bash
-# signup for a docker.com account
-# fork and clone https://github.com/microservices-demo/front-end and build your own docker image
-mkdir apps/sock-shop
-cd apps/sock-shop
-git clone https://github.com/YOUR_GITHUB_USER/user.git
-cd user
-docker build . -t <YOUR-DOCKER-ACCOUNT>/sock-shop-user:same
-
-# if you're on M1 macbook (like me), then you will need to build amd64
-docker push <YOUR-DOCKER-ACCOUNT>/sock-shop-frontend:same
-
-# update line 19 of /apps/sock-shop-frontend-1.yaml and replace nvhoanganh1909 with your docker account name
-cd ../..
-
-# apply the change
-kubectl apply -f sock-shop-frontend-own-image.yaml --namespace=sock-shop
-
-# make sure URL still working
-curl http://<EXTERNAL-IP>
-
-# install NR nodejs agent
-cd sock-shop/front-end
-npm install newrelic --save
-
-# Edit Dockerfile and add ENV NEW_RELIC_NO_CONFIG_FILE=true
-docker build . -t <YOUR-DOCKER-ACCOUNT>/sock-shop-frontend:apm
-
-# push the image again
-docker push <YOUR-DOCKER-ACCOUNT>/sock-shop-frontend:apm
-
-# IMPORTANT: update sock-shop-frontend-own-image-with-apm.yaml file, line 33 with your NR API key
-cd ../..
-kubectl apply -f sock-shop-frontend-own-image-with-apm.yaml --namespace=sock-shop
-
-# run load test again and come back to Services - APM, you should see one new entry there
-k6 run  -e PUBLIC_IP=<EXTERNAL-IP> loadtests/sock-shop.js
-```
-
-## Part 6. Add Browser monitoring
+## Part 5. Add Browser monitoring
 
 -   now that we have APM agent installed for our backend services, let's monitor Real User experience by enabling Browser Integration
 
@@ -241,7 +242,7 @@ kubectl apply -f sock-shop-frontend-own-image-with-rum.yaml --namespace=sock-sho
 # go back to NR1, click on Browsers app, you should see new app in the list
 ```
 
-## Part 7. Install New Relic Infrastructure Agent + Flex on K8s and push Pixie data to NRDB
+## Part 6. Install New Relic Infrastructure Agent + Flex on K8s and push Pixie data to NRDB
 
 -   you can use New Relic Infrastructure Agent and Pixie CLI to periodically push metrics from Pixie to NRDB
 
@@ -270,7 +271,7 @@ kubectl apply -f nri-flex.yml
 
 ![](querypixiedata.png)
 
-## Part 8. Introduce some error code and see them in New Relic
+## Part 7. Introduce some error code and see them in New Relic
 
 -   right now the app is working perfectly, so there is no error
 -   to introduce some error, let's modify `apps/front-end/api/cart/index.js` file and add the following
@@ -322,7 +323,7 @@ kubectl apply -f sock-shop-frontend-own-image-with-error.yaml --namespace=sock-s
 -   click on error will show stack trace
     ![](2022-02-08-19-06-15.png)
 
-## Part 9. Add workload and view Errors inbox
+## Part 8. Add workload and view Errors inbox
 
 -   go to NR1, select Workloads, then create new Workload
 -   select 'sock-shop-frontend' app from APM
@@ -331,7 +332,7 @@ kubectl apply -f sock-shop-frontend-own-image-with-error.yaml --namespace=sock-s
 
 ![](2022-02-08-19-12-45.png)
 
-## Part 10. Install CodeStream to VSCode and view Errors inside the IDE
+## Part 9. Install CodeStream to VSCode and view Errors inside the IDE
 
 -   Install Vscode CodeStream extension and Sign up for an account
 -   Create tag v0.0.2 and apply the changes by running the following command
@@ -381,18 +382,21 @@ kubectl apply -f sock-shop-frontend-own-image-with-error-codestream.yaml --names
 
 ![](2022-02-08-22-12-22.png)
 
-- Note: even when the code is changed, because we have the git SHA, Code Stream will still be able to show you the line of code from the stack trace
-- let's demonstrate this by removing the lines of code we added earlier, like this
+-   Note: even when the code is changed, because we have the git SHA, Code Stream will still be able to show you the line of code from the stack trace
+-   let's demonstrate this by removing the lines of code we added earlier, like this
 
 ![](2022-02-08-22-39-44.png)
 
-- Click on `Open In IDE` again, you will see that VScode is displaying the line of code
+-   Click on `Open In IDE` again, you will see that VScode is displaying the line of code
 
 ![](2022-02-08-22-42-34.png)
 
 # Clean up your Resources
 
 ```bash
-# delete the AKS cluster
+# delete the Azure AKS cluster
 az aks delete --name pixiecluster --resource-group pixiedemo
+
+# delete the AWS EKS cluster
+eksctl delete cluster --name pixiecluster --region us-east-1
 ```
