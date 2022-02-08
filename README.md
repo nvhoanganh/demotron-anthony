@@ -320,7 +320,16 @@ kubectl apply -f sock-shop-frontend-own-image-with-error.yaml --namespace=sock-s
 ```
 
 -   click on error will show stack trace
-![](2022-02-08-19-06-15.png)
+    ![](2022-02-08-19-06-15.png)
+
+## Part 9. Add workload and view Errors inbox
+
+-   go to NR1, select Workloads, then create new Workload
+-   select 'sock-shop-frontend' app from APM
+-   go to Errors Inbox, select your new workload from the workload dropdown
+-   you will see error in your Error inbox
+
+![](2022-02-08-19-12-45.png)
 
 # Clean up your Resources
 
