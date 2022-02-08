@@ -331,6 +331,45 @@ kubectl apply -f sock-shop-frontend-own-image-with-error.yaml --namespace=sock-s
 
 ![](2022-02-08-19-12-45.png)
 
+## Part 10. Install CodeStream to VSCode and view Errors inside the IDE
+
+-   Install Vscode CodeStream extension and Sign up for an account
+-   add 2 more env variables: `NEW_RELIC_METADATA_REPOSITORY_URL` and `NEW_RELIC_METADATA_RELEASE_TAG` in the yml file
+
+```yaml
+# ....
+env:
+    - name: SESSION_REDIS
+      value: 'true'
+    - name: NEW_RELIC_LICENSE_KEY
+      value: 'YOUR_NR_KEY'
+    - name: NEW_RELIC_METADATA_REPOSITORY_URL
+      value: 'https://github.com/YOUR_GITHUB/front-end.git'
+    - name: NEW_RELIC_METADATA_RELEASE_TAG
+      value: 'v0.0.1'
+    - name: NEW_RELIC_APP_NAME
+      value: 'sock-shop-frontend'
+# ....
+```
+
+-   create tag v0.0.1 and apply the changes by running the following command
+
+```bash
+# create and push new tag in front-end
+cd apps/sock-shop/front-end
+git tag -a v0.0.1 -m "tag version v0.0.1"
+git push --tags
+
+# apply k8s changes
+kubectl apply -f sock-shop-frontend-own-image-with-error-codestream.yaml --namespace=sock-shop
+
+# go back to the sock shop and reproduce the error again (update cart to 11 items)
+# go back to Errors Inbox, click on the latest error
+# click on 'Open in IDE', you should see VScode open at the right location
+```
+
+![](2022-02-08-21-42-34.png)
+
 # Clean up your Resources
 
 ```bash
