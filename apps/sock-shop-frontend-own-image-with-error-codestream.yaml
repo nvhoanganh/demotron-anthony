@@ -36,8 +36,6 @@ spec:
                   key: nringestapi
             - name: NEW_RELIC_METADATA_REPOSITORY_URL
               value: 'https://github.com/YOUR_GH_USER/front-end.git'
-            - name: NEW_RELIC_METADATA_RELEASE_TAG
-              value: 'v0.0.1'
             - name: NEW_RELIC_METADATA_COMMIT
               value: '5df034991b8eb4753f09e55f828d82f12f61296c'
             - name: NEW_RELIC_APP_NAME

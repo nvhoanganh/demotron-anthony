@@ -1,26 +1,26 @@
-# Create your own New Relic Demo environment using AWS or Azure K8s Managed Cluster
+# Create your own New Relic demo environment using AWS or Azure K8s Managed Cluster
 
 -   This tutorial will walk you through the process on how you can fully observe a complex, multi-language microservice based E-Commerce application running in a Kubernetes cluster using [https://pixielabs.ai](https://pixielabs.ai) and New Relic
 -   This walkthought will cover the following features of New Relic One Platform:
     -   Create new Kubernetes cluster using either Azure AKS or AWS EKS
-    -   Deploy a Microservice E-Commerce Kubernetes application to your cluster
+    -   Deploy a typical [Microservice E-Commerce](https://github.com/microservices-demo/microservices-demo/blob/master/internal-docs/design.md) Kubernetes application to your cluster
     -   Start observing your kubernetes application with Pixie without instrumentation
     -   Enable Distributed Tracing with New Relic APM
     -   Monitor Real User Experience using Browser Monitoring
     -   Pull custom K8s metrics into New Relic Database using Pixie Script and New Relic Flex
     -   View application Errors in New Relic Errors Inbox
-    -   Jump straight to the error line in VSCode using New Relic CodeStream Integration
+    -   Jump straight to the line of code in VSCode using New Relic CodeStream Integration
 
 ## Prerequisites
 
 -   Azure or AWS Cloud account
 -   A new New Relic account [sign up here](https://newrelic.com/signup)
--   Docker desktop installed [link] (https://docs.docker.com/get-docker/)
+-   Docker desktop [link](https://docs.docker.com/get-docker/)
 -   Docker Hub account [sign up here](https://hub.docker.com/signup)
 -   Github account [sign up here](https://github.com/join)
 -   Kubectl, helm3, nodejs, git, Azure or AWS cli installed
 -   K6 load test tool [link](https://k6.io/docs/getting-started/installation/)
--   VScode [link](https://code.visualstudio.com/download)
+-   VScode [downloa here](https://code.visualstudio.com/download)
 -   Basic Bash knowledge since all commands are Bash commands
 -   Clone this repo to your local machine
 
@@ -71,7 +71,7 @@ az aks get-credentials --resource-group pixiedemo --name pixiecluster
 kubectl get nodes -o wide
 ```
 
-## Deploy simple 2 Tier application (UI + Redis) on K8s Cluster and observe it using Pixie
+## Deploy simple 2-Tier application (UI + Redis) on K8s Cluster and observe it using Pixie
 
 -   First, let's deploy a very simple application and monitor it using New Relic and Pixie
 
@@ -89,6 +89,7 @@ CURL http://<EXTERNAL-IP>
 
 # install helm3 at https://helm.sh/docs/intro/install/
 # login to newrelic one and follow guided install to add new k8s integration using heml3 command
+
 # install using helm3
 kubectl apply -f https://download.newrelic.com/install/kubernetes/pixie/latest/px.dev_viziers.yaml && \
 kubectl apply -f https://download.newrelic.com/install/kubernetes/pixie/latest/olm_crd.yaml && \
@@ -109,10 +110,12 @@ kubectl create namespace newrelic ; helm upgrade --install newrelic-bundle newre
  --set pixie-chart.deployKey=PIXIE_DEPLOY_KEY \
  --set pixie-chart.clusterName=pixiedemo
 
-# install k6 load test from https://k6.io and run quick load test (replace EXTERNAL-IP with the correct external IP you get above)
+# install k6 load test from https://k6.io
+# run quick load test (replace EXTERNAL-IP with the correct external IP you get above)
 k6 run -e PUBLIC_IP=<EXTERNAL-IP> loadtests/azure-vote.js
 
-# go to NR1, select Kubernetes and click on Live debugging with Pixie and select "px/http_request_stats"
+# go to http://one.newrelic.com, select Kubernetes
+# click on Live debugging with Pixie and select "px/http_request_stats"
 # you will see traffic going into the cluster
 ```
 
@@ -130,7 +133,7 @@ px auth login --api_key='PIXIE_API_KEY'
 # show the list of out the box script you can run
 px scripts list
 
-# run one of the script
+# run one of the scripts
 # open http://<EXTERNAL-IP> and click on Dogs or Cats then run this command
 px run px/redis_data
 
@@ -141,12 +144,11 @@ px run px/redis_data
 -   Next, let's deploy this [e-commerce microservice application](https://github.com/microservices-demo/microservices-demo/blob/master/internal-docs/design.md) to the cluster
 
 ```bash
-# the complete yaml for this application has been downloaded to /apps/sock-shop.yaml
 # download https://raw.githubusercontent.com/microservices-demo/microservices-demo/master/deploy/kubernetes/complete-demo.yaml to your machine
 
 curl "https://raw.githubusercontent.com/microservices-demo/microservices-demo/master/deploy/kubernetes/complete-demo.yaml" -o "apps/sock-shop.yaml"
 
-# change line 313 from LoadBalancer from NodePort
+# change line 313 of apps/sock-shop.yaml file, from NodePort to LoadBalancer
 kubectl create namespace sock-shop
 
 # deploy the app
@@ -166,7 +168,7 @@ curl http://<EXTERNAL-IP>
 # run load test against this new Website
 k6 run -e PUBLIC_IP=<EXTERNAL-IP> loadtests/sock-shop.js
 
-# go to NR1, select Kubernetes and click on Live debugging with Pixie and select "px/http_request_stats"
+# go to New Relic One, select Kubernetes and click on Live debugging with Pixie and select "px/http_request_stats"
 # you will see traffic going into the cluster
 
 # run a custom Pixie script to see the MongoDB connections
@@ -180,8 +182,8 @@ px run -f get_connections_to_mongodb.py
 -   In this step, we will add New Relic APM agent to the front end of the sock-shop
 
 ```bash
-# make sure you have an account with hub.docker.com and docker desktop installed on your machine and authenticated
-# fork https://github.com/microservices-demo/front-end
+# make sure you have an account with hub.docker.com and have docker desktop installed on your machine and authenticated
+# go to https://github.com/microservices-demo/front-end and fork this repo (you don't want to modify this repo directly)
 mkdir sock-shop
 cd sock-shop
 
@@ -189,7 +191,8 @@ cd sock-shop
 git clone https://github.com/<YOUR_GITHUB_USER>/front-end.git
 cd front-end
 
-# modify Dockerfile and change from 'FROM node:10-alpine' to 'FROM node:12-alpine' and build new docker image
+# modify Dockerfile and change from 'FROM node:10-alpine' to 'FROM node:12-alpine' since our latest newrelic npm packaged does not support Node 10
+# build new docker image
 docker build . -t <YOUR_DOCKER_ACCOUNT>/sock-shop-frontend:same
 
 
@@ -199,20 +202,21 @@ docker push <YOUR_DOCKER_ACCOUNT>/sock-shop-frontend:same
 
 # file apps/sock-shop-frontend-own-image.yaml is exactly copied from the front-end deployment from the apps/sock-shop.yaml
 
-# Note: update line 19 of /apps/sock-shop-frontend-own-image.yaml and replace YOUR_DOCKER_ACCOUNT with your docker account name
+# Note: update line 19 of /apps/sock-shop-frontend-own-image.yaml
+# and replace YOUR_DOCKER_ACCOUNT with your docker account name
 # from the root of this repo, apply the change
 kubectl apply -f apps/sock-shop-frontend-own-image.yaml --namespace=sock-shop
 
 # make sure URL still working
 curl http://<EXTERNAL-IP>
 
+# to Add Node Js APM Agent:
 # from inside front-end folder, install NR nodejs APM agent
 cd sock-shop/front-end
 npm install newrelic
 
+# build and push new image containing APM Agent
 docker build . -t <YOUR_DOCKER_ACCOUNT>/sock-shop-frontend:apm
-
-# push the image again
 docker push <YOUR_DOCKER_ACCOUNT>/sock-shop-frontend:apm
 
 # store NewRelic Ingest API key as k8s secret
@@ -233,7 +237,7 @@ kubectl apply -f apps/sock-shop-frontend-own-image-with-apm.yaml --namespace=soc
 -   Now that we have APM agent installed for our backend services, let's monitor Real User experience by enabling Browser Integration
 
 ```bash
-# go to NR1, select `Add more data` and select Browser and select 'Copy/Paste Javascript code'
+# go to New Relic One, select `Add more data` and select Browser and select 'Copy/Paste Javascript code'
 # select 'sock-shop-frontend' from the list of apps
 
 # edit /sock-shop/front-end/public/js/front.js file and paste the content of the <script type="text/javascript"> tag in it (NOT including <script type="text/javascript"> itself since this is not Javascript)
@@ -281,7 +285,7 @@ kubectl apply -f nri-flex.yml
 
 ![](querypixiedata.png)
 
-## Introduce some error code and see them in New Relic
+## Introduce some error code and see Errors in New Relic
 
 -   Right now the app is working perfectly, so there is no error
 -   To introduce some error, let's modify `/front-end/api/cart/index.js` file and add the following
@@ -298,7 +302,7 @@ app.post("/cart/update", function (req, res, next) {
     // rest of the file..
 ```
 
--   NR only reports unhandled exceptions, since our ExpressJS has Error handler middleware, we will need to manually report exceptions to New Relic by modifying `/front-end/helpers/index.js` file
+-   Since our ExpressJS has Error handler middleware, all exceptions are handled and because New Relic only reports unhandled exceptions, we will need to manually report exceptions to New Relic by modifying `/front-end/helpers/index.js` file
 
 ```javascript
 // initialize newrelic
@@ -323,11 +327,10 @@ helpers.errorHandler = function (err, req, res, next) {
 ```bash
 cd front-end
 docker build . -t <YOUR_DOCKER_ACCOUNT>/sock-shop-frontend:error
-
-# push image
 docker push <YOUR_DOCKER_ACCOUNT>/sock-shop-frontend:error
 
-# Note: update line 19 of /apps/sock-shop-frontend-own-image-with-error.yaml and replace YOUR_DOCKER_ACCOUNT with your docker account name
+# Note: update line 19 of /apps/sock-shop-frontend-own-image-with-error.yaml
+# and replace YOUR_DOCKER_ACCOUNT with your docker account name
 # apply the change
 kubectl apply -f apps/sock-shop-frontend-own-image-with-error.yaml --namespace=sock-shop
 
@@ -342,7 +345,8 @@ kubectl apply -f apps/sock-shop-frontend-own-image-with-error.yaml --namespace=s
 
 ## Add workload and view Errors inbox
 
--   Go to NR1, select Workloads, then create new Workload
+-   To use Errors Inbox, we will need to create a workload first
+-   Go to New Relic One, select Workloads, then create new Workload
 -   Select `sock-shop-frontend` app from APM
 -   Go to Errors Inbox, select your new workload from the workload dropdown
 -   You will see error in your Error inbox
@@ -351,28 +355,26 @@ kubectl apply -f apps/sock-shop-frontend-own-image-with-error.yaml --namespace=s
 
 ## Install CodeStream to VSCode and view Errors inside the IDE
 
--   Install Vscode CodeStream extension and Sign up for an account
--   Create tag v0.0.1 and apply the changes by running the following command
+-   If you're a developer and you have Core User or Full License, you can view Errors directly in your IDE
+-   Install Vscode CodeStream extension and Sign up for a Code Stream account directly inside VSCode
+-   Select "Connect to New Relic One" and connect to New Relic using User API Key, you can get your User Api key by login to New Relic One, select API Keys from your profile drop down menu
+-   Create tag v0.0.1 and get current commit SHA from the front-end repository
 
 ```bash
-# create and push new tag in front-end
-cd apps/sock-shop/front-end
-git tag -a v0.0.1 -m "tag version v0.0.1"
-git push --tags
-
-# get the current commit SHA by running this command
+# get the current commit SHA from the front-end repository
+cd sock-shop/front-end
 git log -1 --format="%H"
 ```
 
 -   modify `sock-shop-frontend-own-image-with-error-codestream.yaml` file and update these env variables:
     -   `NEW_RELIC_METADATA_REPOSITORY_URL`: should be `https://github.com/YOUR_GH_ACCOUNT/front-end.git`
-    -   `NEW_RELIC_METADATA_RELEASE_TAG`: should be `v0.0.1`
-    -   `NEW_RELIC_METADATA_COMMIT`: output from the above `git log -1` command
+    -   `NEW_RELIC_METADATA_COMMIT`: the output of `git log -1 --format="%H"` command
 -   Deploy the new yaml changes
 
 ```bash
-# Note: update line 19 of /apps/sock-shop-frontend-own-image-with-error.yaml and replace YOUR_DOCKER_ACCOUNT with your docker account name
-# from the root of the repo, apply changes
+# Note: update line 19 of /apps/sock-shop-frontend-own-image-with-error.yaml
+# and replace YOUR_DOCKER_ACCOUNT with your docker account name
+# from the root of this repo, apply changes
 kubectl apply -f apps/sock-shop-frontend-own-image-with-error-codestream.yaml --namespace=sock-shop
 
 # go back to the sock shop and reproduce the error again (update cart to 11 items)
@@ -382,14 +384,14 @@ kubectl apply -f apps/sock-shop-frontend-own-image-with-error-codestream.yaml --
 
 ![](2022-02-08-21-42-34.png)
 
-![](2022-02-08-22-12-22.png)
+![](2022-02-08-22-42-34.png)
 
 -   Note: even when the code is changed, because CodeStream has the git SHA, Code Stream will still be able to show you the line of code from the stack trace
 -   Let's demonstrate this by removing the lines of code we added earlier, like this
 
 ![](2022-02-08-22-39-44.png)
 
--   Click on `Open In IDE` again, you will see that VScode is displaying the line of code
+-   Click on `Open In IDE` again, you will see that VScode is displaying the previous version
 
 ![](2022-02-08-22-42-34.png)
 
