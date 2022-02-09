@@ -228,7 +228,7 @@ kubectl apply -f apps/sock-shop-frontend-own-image-with-apm.yaml --namespace=soc
 # go back to NR1, click on Browsers app, you should see new app in the list
 ```
 
-## Part 5. Add Browser monitoring
+## Add Browser monitoring
 
 -   Now that we have APM agent installed for our backend services, let's monitor Real User experience by enabling Browser Integration
 
