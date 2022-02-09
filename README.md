@@ -222,7 +222,7 @@ docker push <YOUR_DOCKER_ACCOUNT>/sock-shop-frontend:apm
 # store NewRelic Ingest API key as k8s secret
 # From the root of this repo
 echo -n 'YOUR_NR_INGEST_API' > ./nringestapi
-kubectl create secret generic nrsecrets --from-file=./nringestapi
+kubectl create secret generic nrsecrets --from-file=./nringestapi --namespace=sock-shop
 
 # inspect apps/sock-shop-frontend-own-image-with-apm.yaml file, you will see couple more NEW_RELIC_ Env variables added
 # apply changes
