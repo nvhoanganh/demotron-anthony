@@ -20,7 +20,7 @@ spec:
       hostPID: true
       containers:
         - name: nri-flex
-          image: nvhoanganh1909/newrelic_infrastructure_with_pixie:latest
+          image: YOUR_DOCKER_ACCOUNT/newrelic_infrastructure_with_pixie:latest
           imagePullPolicy: Always
           env:
             - name: NRIA_DISPLAY_NAME

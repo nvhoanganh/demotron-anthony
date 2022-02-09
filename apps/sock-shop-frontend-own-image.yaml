@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: front-end
-          image: nvhoanganh1909/sock-shop-frontend:same
+          image: YOUR_DOCKER_ACCOUNT/sock-shop-frontend:same
           resources:
             limits:
               cpu: 300m

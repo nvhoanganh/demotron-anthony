@@ -1,7 +1,7 @@
 # Create your own New Relic Demo environment on Kubernetes cluster
 
 -   This tutorial will walk you through the process on how you can fully observe a complex, multi-language microservice based E-Commerce application running in a Kubernetes cluster using [https://pixielabs.ai](https://pixielabs.ai) and New Relic
--   this walkthought will cover the following features of New Relic One Platform:
+-   This walkthought will cover the following features of New Relic One Platform:
     -   Create new Kubernetes cluster using either Azure AKS or AWS EKS
     -   Deploy a full blown E-Commerce kubernetes application to your cluster
     -   Start observing your kubernetes application with Pixie without instrumentation
@@ -121,7 +121,7 @@ bash install-pixie-no-auth.sh
 
 # login to NewRelic One UI, select Kubernetes, click on the cluster and select Live debugging with Pixie and click "Copy command"
 # run this command
-px auth login --api_key='YOUR_API_KEY'
+px auth login --api_key='PIXIE_API_KEY'
 
 # show the list of out the box script you can run
 px scripts list
@@ -130,12 +130,11 @@ px scripts list
 # open http://<EXTERNAL-IP> and click on Dogs or Cats then run this command
 px run px/redis_data
 
-
 ```
 
 ## Part 3. Setup E-Commerce Microservice application to AKS
 
--   next, let's deploy our e-commerce microservice application [link](https://github.com/microservices-demo/microservices-demo/blob/master/internal-docs/design.md)
+-   Next, let's deploy this e-commerce microservice application [link](https://github.com/microservices-demo/microservices-demo/blob/master/internal-docs/design.md) to the cluster
 
 ```bash
 # deploy https://github.com/microservices-demo/microservices-demo/blob/master/internal-docs/design.md
@@ -156,7 +155,7 @@ curl http://<EXTERNAL-IP>
 # open http://<EXTERNAL-IP> and play around with the app (sign up for user, add to cart, checkout, etc..)
 
 # run load test against this new Website
-k6 run  -e PUBLIC_IP=<EXTERNAL-IP> loadtests/sock-shop.js
+k6 run -e PUBLIC_IP=<EXTERNAL-IP> loadtests/sock-shop.js
 
 # go to NR1, select Kubernetes and click on Live debugging with Pixie and select "px/http_request_stats"
 # you will see traffic going into the cluster
@@ -170,73 +169,76 @@ px run -f get_connections_to_mongodb.py -o json
 
 ## Part 4. Add APM to a NodeJs Service and enable distributed tracing
 
--   right now, we don't really have distributed tracing for the sock-shop application. This is because Pixie can only inspect http traffic but cannot modify them. For Distributed tracing to work, we will need to inject custom `traceid` header to all HTTP traffic.
--   right now under `Services - APM` you wouldn't see any entries belong to the sock-shop
--   in this step, we will add New Relic APM agent to couple of our services and turn on distributed tracing
+-   Right now, we don't have Distributed Tracing for the sock-shop application. This is because Pixie can only inspect HTTP traffic but cannot modify them. For Distributed tracing to work, we will need to inject custom `traceid` header to every HTTP requests
+-   Under `Services - APM` you wouldn't see any entries belong to the sock-shop
+-   In this step, we will add New Relic APM agent to the front-end app of the sock-shop
 
 ```bash
-# signup for a docker.com account
-# fork and clone https://github.com/microservices-demo/front-end and build your own docker image
-mkdir apps/sock-shop
-cd apps/sock-shop
+# make sure you have an account with hub.docker.com and docker desktop installed on your machine and authenticated
+# fork https://github.com/microservices-demo/front-end
+mkdir sock-shop
+cd sock-shop
+
+# clone thee front-end app
 git clone https://github.com/<YOUR_GITHUB_USER>/front-end.git
 cd front-end
 
-# modify Dockerfile and change from 'FROM node:12-alpine' to 'FROM node:12-alpine'
-
-docker build . -t <YOUR-DOCKER-ACCOUNT>/sock-shop-frontend:same
+# modify Dockerfile and change from 'FROM node:12-alpine' to 'FROM node:12-alpine' and build new docker image
+docker build . -t <YOUR_DOCKER_ACCOUNT>/sock-shop-frontend:same
 
 
 # if you're on M1 macbook (like me), then you will need to build amd64
-# docker buildx build --platform linux/amd64 . -t <YOUR-DOCKER-ACCOUNT>/sock-shop-frontend:same --progress=plain
-docker push <YOUR-DOCKER-ACCOUNT>/sock-shop-frontend:same
+# docker buildx build --platform linux/amd64 . -t <YOUR_DOCKER_ACCOUNT>/sock-shop-frontend:same --progress=plain
+docker push <YOUR_DOCKER_ACCOUNT>/sock-shop-frontend:same
 
-# update line 19 of /apps/sock-shop-frontend-own-image.yaml and replace nvhoanganh1909 with your docker account name
-cd ../..
+# Note: update line 19 of /apps/sock-shop-frontend-own-image.yaml and replace YOUR_DOCKER_ACCOUNT with your docker account name
 
-# apply the change
-kubectl apply -f sock-shop-frontend-own-image.yaml --namespace=sock-shop
+# from the root of this repo, apply the change
+kubectl apply -f apps/sock-shop-frontend-own-image.yaml --namespace=sock-shop
 
 # make sure URL still working
 curl http://<EXTERNAL-IP>
 
-# install NR nodejs agent
+# from inside front-end folder, install NR nodejs APM agent
 cd sock-shop/front-end
-npm install newrelic --save
+npm install newrelic
 
-# Edit Dockerfile and add ENV NEW_RELIC_NO_CONFIG_FILE=true
-docker build . -t <YOUR-DOCKER-ACCOUNT>/sock-shop-frontend:apm
+# Edit Dockerfile and add ENV NEW_RELIC_NO_CONFIG_FILE=true (after line 4) and build new docker image
+docker build . -t <YOUR_DOCKER_ACCOUNT>/sock-shop-frontend:apm
 
 # push the image again
-docker push <YOUR-DOCKER-ACCOUNT>/sock-shop-frontend:apm
+docker push <YOUR_DOCKER_ACCOUNT>/sock-shop-frontend:apm
 
-# IMPORTANT: update sock-shop-frontend-own-image-with-apm.yaml file, line 33 with your NR API key
-cd ../..
-kubectl apply -f sock-shop-frontend-own-image-with-apm.yaml --namespace=sock-shop
+# store NewRelic Ingest API key as k8s secret
+# From the root of this repo
+echo -n 'YOUR_NR_INGEST_API' > ./nringestapi
+kubectl create secret generic nrsecrets --from-file=./nringestapi
 
-# run load test again and come back to Services - APM, you should see one new entry there
-k6 run  -e PUBLIC_IP=<EXTERNAL-IP> loadtests/sock-shop.js
+# apply changes
+kubectl apply -f apps/sock-shop-frontend-own-image-with-apm.yaml --namespace=sock-shop
+
+# manually navigate to the app via browser, click through some pages
+# go back to NR1, click on Browsers app, you should see new app in the list
 ```
 
 ## Part 5. Add Browser monitoring
 
--   now that we have APM agent installed for our backend services, let's monitor Real User experience by enabling Browser Integration
+-   Now that we have APM agent installed for our backend services, let's monitor Real User experience by enabling Browser Integration
 
 ```bash
-# go to NR1, select Add more data and select Browser and select 'Copy/Paste Javascript code'
-# select the app from previous step
-# edit apps/sock-shop/front-end/public/js/front.js file and paste the content of the <script type="text/javascript"> tag in it (NOT including <script type="text/javascript"> itself)
+# go to NR1, select `Add more data` and select Browser and select 'Copy/Paste Javascript code'
+# select 'sock-shop-frontend' from the list of apps
+# edit /sock-shop/front-end/public/js/front.js file and paste the content of the <script type="text/javascript"> tag in it (NOT including <script type="text/javascript"> itself since this is not Javascript)
 
 # build new version again
 cd sock-shop/front-end
-docker build . -t <YOUR-DOCKER-ACCOUNT>/sock-shop-frontend:rum
+docker build . -t <YOUR_DOCKER_ACCOUNT>/sock-shop-frontend:rum
 
 # push the image again
-docker push <YOUR-DOCKER-ACCOUNT>/sock-shop-frontend:rum
+docker push <YOUR_DOCKER_ACCOUNT>/sock-shop-frontend:rum
 
-# apply change
-cd ../..
-kubectl apply -f sock-shop-frontend-own-image-with-rum.yaml --namespace=sock-shop
+# update NEW_RELIC_LICENSE_KEY and YOUR_DOCKER_ACCOUNT then apply change
+kubectl apply -f apps/sock-shop-frontend-own-image-with-rum.yaml --namespace=sock-shop
 
 # manually navigate to the app via browser, click through some pages
 # go back to NR1, click on Browsers app, you should see new app in the list
@@ -244,37 +246,38 @@ kubectl apply -f sock-shop-frontend-own-image-with-rum.yaml --namespace=sock-sho
 
 ## Part 6. Install New Relic Infrastructure Agent + Flex on K8s and push Pixie data to NRDB
 
--   you can use New Relic Infrastructure Agent and Pixie CLI to periodically push metrics from Pixie to NRDB
+-   Currently, for security reasons, when [Pixie](https://pixielabs.ai) is installed into your k8s cluster, New Relic only fetches and stores data that related to an application's performance. Therefore, you can only create Alert and Dashboard on a predefined subset of the data collected by Pixie [read more here](https://docs.newrelic.com/docs/kubernetes-pixie/auto-telemetry-pixie/pixie-data-security-overview/).
+-   However, with New Relic Infrastructure Agent and Pixie CLI installed in your K8s cluster, you can write custom Pixie script and periodically push Pixie metrics to New Relic Database and then create dashboard and alerts on these metrics
 
 ```bash
-# build and push new New Relic Infrastructure agent image with Pixie cli installed
+# first, let's build and push new New Relic Infrastructure agent image with Pixie cli installed
 
-docker build . -t <YOUR-DOCKER-ACCOUNT>/newrelic_infrastructure_with_pixie:latest
+# from the root of this repo
+docker build . -t <YOUR_DOCKER_ACCOUNT>/newrelic_infrastructure_with_pixie:latest
 
-docker push <YOUR-DOCKER-ACCOUNT>/newrelic_infrastructure_with_pixie:latest
+docker push <YOUR_DOCKER_ACCOUNT>/newrelic_infrastructure_with_pixie:latest
 
-# create file containging New Relic ingest API key
-echo -n 'YOUR_NR_API_KEY' > nringestapi
-
-# create file containging PIXIE API key
-# you can get this by click on `Copy command` link under `Live debugging with Pixie` tab on New Relic Kubernetes Cluster Explorer page
-echo -n 'YOUR_PIXIE_API_KEY' > pixieapikey
+# store NR Ingest and PIXIE API key in k8s secret
+# you can get PIXIE API by click on `Copy command` link under `Live debugging with Pixie` tab on New Relic Kubernetes Cluster Explorer page
+echo -n 'YOUR_PIXIE_API_KEY' > ./pixieapikey
+echo -n 'YOUR_NR_INGEST_API' > ./nringestapi
 
 # assuming your kubectl config file is at default location: $HOME/.kube/config
-kubectl create secret generic pixiesecrets --from-file=./pixiesecrets/pixieapikey --from-file=$HOME/.kube/config --from-file=./pixiesecrets/nringestapi
+kubectl create secret generic pixiesecrets --from-file=./pixieapikey --from-file=./nringestapi --from-file=$HOME/.kube/config
 
 # deploy the file
 kubectl apply -f nri-flex.yml
-```
 
--   after couple minutes, you can query the data in New Relic like this
+# go back to the sock shop app and click around
+# After couple minutes, you can query the data in New Relic like this
+```
 
 ![](querypixiedata.png)
 
 ## Part 7. Introduce some error code and see them in New Relic
 
--   right now the app is working perfectly, so there is no error
--   to introduce some error, let's modify `apps/front-end/api/cart/index.js` file and add the following
+-   Right now the app is working perfectly, so there is no error
+-   To introduce some error, let's modify `/front-end/api/cart/index.js` file and add the following
 
 ```javascript
 app.post("/cart/update", function (req, res, next) {
@@ -288,89 +291,82 @@ app.post("/cart/update", function (req, res, next) {
     // rest of the file..
 ```
 
--   report unhanled errors to New Relic by modifying `app/front-end/helpers/index.js` file
+-   NR only reports unhandled exceptions, since our ExpressJS has Error handler middleware, we will need to manually report exceptions to New Relic by modifying `/front-end/helpers/index.js` file
 
 ```javascript
+// initialize newrelic
+var newrelic = require('newrelic');
+
 helpers.errorHandler = function (err, req, res, next) {
 	var ret = {
 		message: err.message,
 		error: err,
 	};
+
+	// send error directly to NewRelic
 	newrelic.noticeError(err);
 	res.status(err.status || 500).send(ret);
 };
+
+// rest of the file...
 ```
 
--   build and deploy the new image
+-   Build and deploy the new image
 
 ```bash
-
-docker build . -t <YOUR-DOCKER-ACCOUNT>/sock-shop-frontend:error
+cd front-end
+docker build . -t <YOUR_DOCKER_ACCOUNT>/sock-shop-frontend:error
 
 # push image
-docker push <YOUR-DOCKER-ACCOUNT>/sock-shop-frontend:error
+docker push <YOUR_DOCKER_ACCOUNT>/sock-shop-frontend:error
 
-# update line 19 of /apps/sock-shop-frontend-own-image-with-error.yaml and replace nvhoanganh1909 with your docker account name
+# Note: update line 19 of /apps/sock-shop-frontend-own-image-with-error.yaml and replace YOUR_DOCKER_ACCOUNT with your docker account name
 # apply the change
 kubectl apply -f sock-shop-frontend-own-image-with-error.yaml --namespace=sock-shop
 
 # go to the app on browser, add an item into the cart and then update the cart
-# setting the quantity to 10 => works fine
-# setting the quantity to 11 => get 500 server (network tab in browser)
+# - set the quantity to 10 => works fine
+# - set the quantity to 11 => get 500 server (you can see error in the network tab in browser Dev Tools)
 # go to NR, select 'sock-shop-frontend' under APM, you should see some error reported under Events > Errors
 ```
 
--   click on error will show stack trace
+-   Click on error will show stack trace
     ![](2022-02-08-19-06-15.png)
 
 ## Part 8. Add workload and view Errors inbox
 
--   go to NR1, select Workloads, then create new Workload
--   select 'sock-shop-frontend' app from APM
--   go to Errors Inbox, select your new workload from the workload dropdown
--   you will see error in your Error inbox
+-   Go to NR1, select Workloads, then create new Workload
+-   Select `sock-shop-frontend` app from APM
+-   Go to Errors Inbox, select your new workload from the workload dropdown
+-   You will see error in your Error inbox
 
 ![](2022-02-08-19-12-45.png)
 
 ## Part 9. Install CodeStream to VSCode and view Errors inside the IDE
 
 -   Install Vscode CodeStream extension and Sign up for an account
--   Create tag v0.0.2 and apply the changes by running the following command
+-   Create tag v0.0.1 and apply the changes by running the following command
 
 ```bash
 # create and push new tag in front-end
 cd apps/sock-shop/front-end
-git tag -a v0.0.2 -m "tag version v0.0.2"
+git tag -a v0.0.1 -m "tag version v0.0.1"
 git push --tags
 
 # get the current commit SHA by running this command
 git log -1 --format="%H"
 ```
 
--   add 3 more env variables: `NEW_RELIC_METADATA_REPOSITORY_URL` and `NEW_RELIC_METADATA_RELEASE_TAG` and `NEW_RELIC_METADATA_COMMIT` in the yml file
-
-```yaml
-# ....
-env:
-    - name: SESSION_REDIS
-      value: 'true'
-    - name: NEW_RELIC_LICENSE_KEY
-      value: 'YOUR_NR_KEY'
-    - name: NEW_RELIC_METADATA_REPOSITORY_URL
-      value: 'https://github.com/YOUR_GITHUB/front-end.git'
-    - name: NEW_RELIC_METADATA_RELEASE_TAG
-      value: 'v0.0.2'
-    - name: NEW_RELIC_METADATA_COMMIT
-      value: 'SHA_FROM_ABOVE'
-    - name: NEW_RELIC_APP_NAME
-      value: 'sock-shop-frontend'
-# ....
-```
-
--   deploy the new yaml changes
+-   modify `sock-shop-frontend-own-image-with-error-codestream.yaml` file and update these env variables:
+    -   `NEW_RELIC_METADATA_REPOSITORY_URL`: should be `https://github.com/YOUR_GH_ACCOUNT/front-end.git`
+    -   `NEW_RELIC_METADATA_RELEASE_TAG`: should be `v0.0.1`
+    -   `NEW_RELIC_METADATA_COMMIT`: from the above `git log -1` command
+-   Deploy the new yaml changes
 
 ```bash
-# apply k8s changes
+
+# Note: update line 19 of /apps/sock-shop-frontend-own-image-with-error.yaml and replace YOUR_DOCKER_ACCOUNT with your docker account name
+# from the root of the repo, apply changes
 kubectl apply -f sock-shop-frontend-own-image-with-error-codestream.yaml --namespace=sock-shop
 
 # go back to the sock shop and reproduce the error again (update cart to 11 items)
@@ -382,8 +378,8 @@ kubectl apply -f sock-shop-frontend-own-image-with-error-codestream.yaml --names
 
 ![](2022-02-08-22-12-22.png)
 
--   Note: even when the code is changed, because we have the git SHA, Code Stream will still be able to show you the line of code from the stack trace
--   let's demonstrate this by removing the lines of code we added earlier, like this
+-   Note: even when the code is changed, because CodeStream has the git SHA, Code Stream will still be able to show you the line of code from the stack trace
+-   Let's demonstrate this by removing the lines of code we added earlier, like this
 
 ![](2022-02-08-22-39-44.png)
 
