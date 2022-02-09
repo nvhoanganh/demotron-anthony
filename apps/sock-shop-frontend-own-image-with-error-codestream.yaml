@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: front-end
-          image: YOUR_DOCKER_ACCOUNT/sock-shop-frontend:error1
+          image: YOUR_DOCKER_ACCOUNT/sock-shop-frontend:error
           resources:
             limits:
               cpu: 300m
@@ -35,13 +35,15 @@ spec:
                   name: nrsecrets
                   key: nringestapi
             - name: NEW_RELIC_METADATA_REPOSITORY_URL
-              value: 'https://github.com/nvhoanganh/front-end.git'
+              value: 'https://github.com/YOUR_GH_USER/front-end.git'
             - name: NEW_RELIC_METADATA_RELEASE_TAG
               value: 'v0.0.1'
             - name: NEW_RELIC_METADATA_COMMIT
               value: '5df034991b8eb4753f09e55f828d82f12f61296c'
             - name: NEW_RELIC_APP_NAME
               value: 'sock-shop-frontend'
+            - name: NEW_RELIC_NO_CONFIG_FILE
+              value: 'true'
             - name: NEW_RELIC_DISTRIBUTED_TRACING_ENABLED
               value: 'true'
           securityContext:
