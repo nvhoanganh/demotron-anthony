@@ -1,4 +1,4 @@
-# Create your own New Relic demo environment using AWS or Azure K8s Managed Cluster
+# Create your own New Relic demo environment using AWS or Azure K8s cluster
 
 -   This tutorial will walk you through the process on how you can fully observe a complex, multi-language microservice based E-Commerce application running in a Kubernetes cluster using [https://pixielabs.ai](https://pixielabs.ai) and New Relic
 -   This walkthought will cover the following features of New Relic One Platform:
