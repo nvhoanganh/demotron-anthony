@@ -398,15 +398,15 @@ kubectl apply -f apps/sock-shop-frontend-own-image-with-error-codestream.yaml --
 
 ## Add Logs in Context for the front-end app
 
--   right now the front-end nodejs app is not using any structure logging, only `console.log` is used
--   let's add `winston` structured logging to it
+-   Right now the front-end nodejs app is not using any structure logging, only `console.log` is used
+-   Let's add `winston` structured logging to it
 
 ```bash
 # install winston and newrelic winston enricher
 npm i --save winston @newrelic/winston-enricher
 ```
 
--   add windston logger by modifying the `helpers/index.js` file
+-   Add windston logger by modifying the `helpers/index.js` file
 
 ```javascript
 'use strict';
@@ -454,8 +454,9 @@ global.console.log = (...args) => logger.info.call(logger, ...args);
 ```bash
 # update LOG_PARSER env to cri
 kubectl set env DaemonSet/newrelic-bundle-newrelic-logging LOG_PARSER=cri --namespace=newrelic
-kubectl rollout restart DaemonSet newrelic-bundle-newrelic-logging -n newrelic
+
 # force daemonset restart
+kubectl rollout restart DaemonSet newrelic-bundle-newrelic-logging -n newrelic
 ```
 
 -   Reload the browser and go to New Relic One, Logs In Context should now be working
