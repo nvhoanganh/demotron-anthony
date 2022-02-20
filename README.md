@@ -10,6 +10,7 @@
     -   Pull custom K8s metrics into New Relic Database using Pixie Script and New Relic Flex
     -   View application Errors in New Relic Errors Inbox
     -   Jump straight to the line of code in VSCode using New Relic CodeStream Integration
+    -   Add Logs In Context
 
 ## Prerequisites
 
@@ -395,6 +396,72 @@ kubectl apply -f apps/sock-shop-frontend-own-image-with-error-codestream.yaml --
 
 ![](2022-02-08-22-42-34.png)
 
+## Add Logs in Context for the front-end app
+
+-   right now the front-end nodejs app is not using any structure logging, only `console.log` is used
+-   let's add `winston` structured logging to it
+
+```bash
+# install winston and newrelic winston enricher
+npm i --save winston @newrelic/winston-enricher
+```
+
+-   add windston logger by modifying the `helpers/index.js` file
+
+```javascript
+'use strict';
+
+var request = require('request');
+var newrelic = require('newrelic');
+var helpers = {};
+
+const winston = require('winston');
+const newrelicFormatter = require('@newrelic/winston-enricher');
+helpers.logger = winston.createLogger({
+	level: 'info',
+	format: winston.format.combine(
+		winston.format.json(),
+		// combine with newrelic enricher
+		newrelicFormatter()
+	),
+	defaultMeta: { service: 'front-end' },
+	transports: [
+		// just push to console this will be picked up by Newrlic logger FluentBit daemon
+		new winston.transports.Console(),
+	],
+});
+
+// remaining of the file
+```
+
+-   overwrite `console.log` globally with Winston `logger.info` in `server.js` file
+
+```javascript
+const { logger } = helpers;
+// overrwrite global console.log object
+global.console.log = (...args) => logger.info.call(logger, ...args);
+
+// remaining of the file
+```
+
+-   Redeploy the app again (follow above instructions) (build new image, push, update deployment etc.)
+-   Reload the browser and go to New Relic One, you will see something like this
+
+![](2022-02-21-09-10-33.png)
+
+-   The reason for this is because both EKS and AKS changed container runtime from docker to contianerd and since then the log format is now changed and we're unable to process the nested structured logs correctly. When we install [newrelic-bundle](https://artifacthub.io/packages/helm/newrelic/nri-bundle) helm chart in step 1, default `fluentBit.criEnabled` configuration for [newrelic-logging](https://github.com/newrelic/helm-charts/tree/master/charts/newrelic-logging) is false, we need to change this to true
+
+```bash
+# update LOG_PARSER env to cri
+kubectl set env DaemonSet/newrelic-bundle-newrelic-logging LOG_PARSER=cri --namespace=newrelic
+kubectl rollout restart DaemonSet newrelic-bundle-newrelic-logging -n newrelic
+# force daemonset restart
+```
+
+-   Reload the browser and go to New Relic One, Logs In Context should now be working
+
+![](2022-02-21-09-43-41.png)
+
 # Clean up your Resources
 
 ```bash
@@ -404,3 +471,7 @@ az aks delete --name pixiecluster --resource-group pixiedemo
 # delete the AWS EKS cluster
 eksctl delete cluster --name pixiecluster --region us-east-1
 ```
+
+curl https://raw.githubusercontent.com/newrelic/helm-charts/master/charts/newrelic-logging/k8s/fluent-conf.yml > fluent-conf.yml
+curl https://raw.githubusercontent.com/newrelic/helm-charts/master/charts/newrelic-logging/k8s/new-relic-fluent-plugin.yml > new-relic-fluent-plugin.yml
+curl https://raw.githubusercontent.com/newrelic/helm-charts/master/charts/newrelic-logging/k8s/rbac.yml > rbac.yml
