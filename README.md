@@ -145,15 +145,13 @@ px run px/redis_data
 -   Next, let's deploy this [e-commerce microservice application](https://github.com/microservices-demo/microservices-demo/blob/master/internal-docs/design.md) to the cluster
 
 ```bash
-# download https://raw.githubusercontent.com/microservices-demo/microservices-demo/master/deploy/kubernetes/complete-demo.yaml to your machine
-
-curl "https://raw.githubusercontent.com/microservices-demo/microservices-demo/master/deploy/kubernetes/complete-demo.yaml" -o "apps/sock-shop.yaml"
-
-# change line 313 of apps/sock-shop.yaml file, from NodePort to LoadBalancer
+# create new namespace
 kubectl create namespace sock-shop
 
-# deploy the app
-kubectl apply -f apps/sock-shop.yaml --namespace=sock-shop
+kubectl apply -f "https://raw.githubusercontent.com/microservices-demo/microservices-demo/master/deploy/kubernetes/complete-demo.yaml" --namespace=sock-shop
+
+# change service type from NodePort to LoadBalancer so that we can access it from outside
+kubectl patch svc front-end -p '{"spec": {"type": "LoadBalancer"}}' -n sock-shop
 
 # get the external IP of the front-end service
 kubectl get service --watch --namespace=sock-shop
