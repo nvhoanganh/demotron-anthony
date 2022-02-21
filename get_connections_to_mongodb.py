@@ -2,9 +2,10 @@
 import px
 
 # Load the last 30 seconds of Pixie's `conn_stats` table into a Dataframe.
-df = px.DataFrame(table='conn_stats', start_time='-30m')
+df = px.DataFrame(table='conn_stats', start_time='-30s')
 
 # select column you want, you can run `px live px/schemas` to get the column list of tables and column names
+# in this case we just want remote_addr,remote_port,conn_open,conn_close
 df = df[['remote_addr','remote_port','conn_open', 'conn_close']]
 
 # attach Context information

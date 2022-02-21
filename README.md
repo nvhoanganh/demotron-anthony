@@ -140,7 +140,7 @@ px run px/redis_data
 
 ```
 
-## Setup E-Commerce Microservice application to AKS
+## Setup E-Commerce Microservice application to your K8s Cluster
 
 -   Next, let's deploy this [e-commerce microservice application](https://github.com/microservices-demo/microservices-demo/blob/master/internal-docs/design.md) to the cluster
 
@@ -194,19 +194,14 @@ cd front-end
 
 # modify Dockerfile and change from 'FROM node:10-alpine' to 'FROM node:12-alpine' since our latest newrelic npm packaged does not support Node 10
 # build new docker image
-docker build . -t <YOUR_DOCKER_ACCOUNT>/sock-shop-frontend:same
-
+docker build . -t <YOUR_DOCKER_ACCOUNT>/sock-shop-frontend:v1
 
 # if you're on Apple M1 macbook, then you will need to build amd64 version like this
-# docker buildx build --platform linux/amd64 . -t <YOUR_DOCKER_ACCOUNT>/sock-shop-frontend:same
-docker push <YOUR_DOCKER_ACCOUNT>/sock-shop-frontend:same
+# docker buildx build --platform linux/amd64 . -t <YOUR_DOCKER_ACCOUNT>/sock-shop-frontend:v1
+docker push <YOUR_DOCKER_ACCOUNT>/sock-shop-frontend:v1
 
-# file apps/sock-shop-frontend-own-image.yaml is exactly copied from the front-end deployment from the apps/sock-shop.yaml
-
-# Note: update line 19 of /apps/sock-shop-frontend-own-image.yaml
-# and replace YOUR_DOCKER_ACCOUNT with your docker account name
-# from the root of this repo, apply the change
-kubectl apply -f apps/sock-shop-frontend-own-image.yaml --namespace=sock-shop
+# update the image of the runing front-end deployment
+kubectl set image deployment/front-end front-end=<YOUR_DOCKER_ACCOUNT>/sock-shop-frontend:v1 -n sock-shop
 
 # make sure URL still working
 curl http://<EXTERNAL-IP>
@@ -220,17 +215,19 @@ npm install newrelic
 docker build . -t <YOUR_DOCKER_ACCOUNT>/sock-shop-frontend:apm
 docker push <YOUR_DOCKER_ACCOUNT>/sock-shop-frontend:apm
 
-# store NewRelic Ingest API key as k8s secret
-# From the root of this repo
-echo -n 'YOUR_NR_INGEST_API' > ./nringestapi
-kubectl create secret generic nrsecrets --from-file=./nringestapi --namespace=sock-shop
+# set required New Relic environment variables
 
-# inspect apps/sock-shop-frontend-own-image-with-apm.yaml file, you will see couple more NEW_RELIC_ Env variables added
-# apply changes
-kubectl apply -f apps/sock-shop-frontend-own-image-with-apm.yaml --namespace=sock-shop
+kubectl set env deployment/front-end \
+    NEW_RELIC_LICENSE_KEY=YOUR_NR_INGEST_API \
+    NEW_RELIC_APP_NAME=sock-shop-frontend \
+    NEW_RELIC_NO_CONFIG_FILE=true \
+    NEW_RELIC_DISTRIBUTED_TRACING_ENABLED=true \
+    --namespace=sock-shop
+
+kubectl set image deployment/front-end front-end=YOUR_DOCKER_ACCOUNT/sock-shop-frontend:error5 -n sock-shop
 
 # manually navigate to the app via browser, click through some pages
-# go back to NR1, click on Browsers app, you should see new app in the list
+# go back to NR1, click on APM, you should see new app in the list
 ```
 
 ## Add Browser monitoring
@@ -248,8 +245,8 @@ cd sock-shop/front-end
 docker build . -t <YOUR_DOCKER_ACCOUNT>/sock-shop-frontend:rum
 docker push <YOUR_DOCKER_ACCOUNT>/sock-shop-frontend:rum
 
-# edit apps/sock-shop-frontend-own-image-with-rum.yaml and update YOUR_DOCKER_ACCOUNT then apply change
-kubectl apply -f apps/sock-shop-frontend-own-image-with-rum.yaml --namespace=sock-shop
+# update the image of front-ent app
+kubectl set image deployment/front-end front-end=YOUR_DOCKER_ACCOUNT/sock-shop-frontend:rum -n sock-shop
 
 # manually navigate to the app via browser, click through some pages
 # go back to NR1, click on Browsers app, you should see new app in the list
@@ -330,10 +327,8 @@ cd front-end
 docker build . -t <YOUR_DOCKER_ACCOUNT>/sock-shop-frontend:error
 docker push <YOUR_DOCKER_ACCOUNT>/sock-shop-frontend:error
 
-# Note: update line 19 of /apps/sock-shop-frontend-own-image-with-error.yaml
-# and replace YOUR_DOCKER_ACCOUNT with your docker account name
-# apply the change
-kubectl apply -f apps/sock-shop-frontend-own-image-with-error.yaml --namespace=sock-shop
+# use the newly built image
+kubectl set image deployment/front-end front-end=YOUR_DOCKER_ACCOUNT/sock-shop-frontend:error -n sock-shop
 
 # go to the app on browser, add an item into the cart and then update the cart
 # - set the quantity to 10 => works fine
@@ -365,18 +360,15 @@ kubectl apply -f apps/sock-shop-frontend-own-image-with-error.yaml --namespace=s
 # get the current commit SHA from the front-end repository
 cd sock-shop/front-end
 git log -1 --format="%H"
-```
 
--   modify `sock-shop-frontend-own-image-with-error-codestream.yaml` file and update these env variables:
-    -   `NEW_RELIC_METADATA_REPOSITORY_URL`: should be `https://github.com/YOUR_GH_ACCOUNT/front-end.git`
-    -   `NEW_RELIC_METADATA_COMMIT`: the output of `git log -1 --format="%H"` command
--   Deploy the new yaml changes
-
-```bash
-# Note: update line 19 of /apps/sock-shop-frontend-own-image-with-error.yaml
-# and replace YOUR_DOCKER_ACCOUNT with your docker account name
 # from the root of this repo, apply changes
-kubectl apply -f apps/sock-shop-frontend-own-image-with-error-codestream.yaml --namespace=sock-shop
+
+kubectl set env deployment/front-end \
+    NEW_RELIC_METADATA_REPOSITORY_URL=https://github.com/<YOUR_GITHUB_USER>/front-end.git \
+    NEW_RELIC_METADATA_COMMIT=<COMMIT_ID> \
+    --namespace=sock-shop
+
+kubectl set image deployment/front-end front-end=YOUR_DOCKER_ACCOUNT/sock-shop-frontend:error5 -n sock-shop
 
 # go back to the sock shop and reproduce the error again (update cart to 11 items)
 # go back to Errors Inbox, click on the latest error
