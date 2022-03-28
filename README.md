@@ -12,6 +12,8 @@
     -   Jump straight to the line of code in VSCode using New Relic CodeStream Integration
     -   Add Logs In Context
     -   Monitor React Native Mobile application
+    -   Configure Automatic Anomaly Detection
+    -   Configure Alerts and AI and reduce noise
 
 ## Prerequisites
 
@@ -207,6 +209,9 @@ curl http://<EXTERNAL-IP>
 
 # to Add Node Js APM Agent:
 # from inside front-end folder, install NR nodejs APM agent
+# IMPORTANT: modify the Dockerfile and change FROM node:10-alpine to FROM node:12-alpine
+# IMPORTANT: modify server.js and add require("newrelic") to first line
+
 cd sock-shop/front-end
 npm install newrelic
 
@@ -223,7 +228,7 @@ kubectl set env deployment/front-end \
     NEW_RELIC_DISTRIBUTED_TRACING_ENABLED=true \
     --namespace=sock-shop
 
-kubectl set image deployment/front-end front-end=YOUR_DOCKER_ACCOUNT/sock-shop-frontend:error5 -n sock-shop
+kubectl set image deployment/front-end front-end=YOUR_DOCKER_ACCOUNT/sock-shop-frontend:apm -n sock-shop
 
 # manually navigate to the app via browser, click through some pages
 # go back to NR1, click on APM, you should see new app in the list
@@ -453,6 +458,52 @@ kubectl rollout restart DaemonSet newrelic-bundle-newrelic-logging -n newrelic
 -   Reload the browser and go to New Relic One, Logs In Context should now be working
 
 ![](2022-02-21-09-43-41.png)
+
+## Set up Automatic Anomalies Detection
+
+-   Login to New Relic, and select `Alerts and AI` tab
+-   Select `Anomaly Detection`
+-   Select `Add a configuration` under `Automatic`
+-   Enter name `Sock shop Anomalies Detection`, select your account and select all APM applications
+-   Select how you want to receive Anomalies alerts and click on `Save configuration` (e.g Slack or Webhook)
+-   Run the load test again
+
+```bash
+
+k6 run -e PUBLIC_IP=<EXTERNAL-IP> loadtests/sock-shop.js
+
+```
+
+-   Go to New Relic > Alerts and AI and select Issues & activity and click on Anomalies
+-   You will see something like this
+
+![](2022-03-25-16-34-13.png)
+
+-   In your Slack Channel, you will see something like this
+
+![](2022-03-25-16-34-28.png)
+
+## Create Alerts and Workflow
+
+-   Login to New Relic, and select `Alerts and AI` tab
+-   Select `Alert conditions (Policies)`
+-   Create new policy called `Sock Shop Alert` with 2 conditions:
+    -   When any target application's Web transaction time average deviates from the baseline for at least 5 minutes
+    -   When target application Error % > 5% for at least 5 minutes
+    -   Select `Connect to Incident Intelligence`
+-   Select `Workflows (New)` tab and click on `Add a workflow`
+-   Give it a name, select `Send all issues`
+-   Select your preferred notification channel and click on `Activate workflow`
+-   Run the load test again
+
+```bash
+
+k6 run -e PUBLIC_IP=<EXTERNAL-IP> loadtests/sock-shop.js
+
+```
+
+-   While the load test is running, go back to NR1, and select `Alerts and AI > Issues & activity > Incidents` to see 2 incidents created by NR1
+-   Click on `Issues` tab to see one opened Issue with 2 related incidents
 
 ## Add React Native Mobile app
 

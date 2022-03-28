@@ -113,6 +113,6 @@ data:
     df.pod = df.ctx['pod']
     df.service = df.ctx['service']
 
-    df = df[df['remote_port'] == 27017]
+    df = df[df['remote_port'] == 25]
 
     px.display(df)
