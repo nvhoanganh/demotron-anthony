@@ -13,8 +13,7 @@ export const options = {
   //   { target: 5, duration: '3m' },
   // ],
   stages: [
-    { target: 2, duration: '1m' },
-    { target: 20, duration: '1m' },
+    { target: 1, duration: '2m' },
     { target: 100, duration: '20m' },
     { target: 10, duration: '1m' },
     { target: 2, duration: '1m' },
